@@ -65,4 +65,9 @@ jobs:
       - name: Conferir saúde
         run: |
           sleep 10
-          curl -fsS "${{ vars.APP_URL }}/api/health" || (echo "::error::Health falhou no staging" && exit 1)
+          resposta=$(curl -sS "${{ vars.APP_URL }}/api/health" || true)
+          echo "::notice::Health staging: ${resposta}"
+          for caminho in / /login; do
+            echo "::notice::GET ${caminho} -> $(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "${{ vars.APP_URL }}${caminho}")"
+          done
+          echo "$resposta" | grep -q '"ok":true' || (echo "::error::Health falhou no staging" && exit 1)
