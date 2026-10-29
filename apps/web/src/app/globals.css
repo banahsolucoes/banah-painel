@@ -439,3 +439,29 @@ textarea {
   color: var(--erro);
   border-color: var(--erro);
 }
+.form-preco {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.form-preco input[name="preco"] {
+  min-width: 0;
+  width: 90px;
+  text-align: right;
+}
+.form-preco button {
+  padding: 5px 10px;
+}
+.confirmo {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 4px;
+  align-items: center;
+  color: var(--erro);
+  font-weight: 600;
+}
+.confirmo input {
+  min-width: 0;
+}

@@ -42,6 +42,50 @@ export async function mlGet<T>(
   }
 }
 
+/**
+ * Escrita na API do ML (PUT/POST). Repete só em 429 e 5xx; qualquer outro erro sobe
+ * com a mensagem do ML, para aparecer na tela como veio.
+ */
+export async function mlEnviar<T>(
+  accessToken: string,
+  metodo: "PUT" | "POST" | "DELETE",
+  caminho: string,
+  corpo?: unknown,
+  params: Record<string, string | number> = {},
+): Promise<T> {
+  const url = new URL(caminho, ML_API);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+  for (let tentativa = 1; ; tentativa++) {
+    const res = await fetch(url, {
+      method: metodo,
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: corpo === undefined ? undefined : JSON.stringify(corpo),
+    });
+    const texto = await res.text();
+    if (res.ok) return (texto ? JSON.parse(texto) : {}) as T;
+    const repetivel = res.status === 429 || res.status >= 500;
+    if (!repetivel || tentativa >= 3) throw new MlErro(res.status, caminho, texto);
+    await esperar(1000 * 2 ** tentativa);
+  }
+}
+
+/** Mensagem legível de um erro do ML (o corpo costuma ter message e cause[]). */
+export function mensagemDoErro(e: unknown): string {
+  if (!(e instanceof MlErro)) return e instanceof Error ? e.message : String(e);
+  const bruto = e.message.replace(/^ML \d+ em [^:]+: /, "");
+  try {
+    const j = JSON.parse(bruto) as { message?: string; cause?: { message?: string }[] };
+    const causas = (j.cause ?? []).map((c) => c.message).filter(Boolean);
+    return [j.message, ...causas].filter(Boolean).join(" · ") || bruto;
+  } catch {
+    return bruto;
+  }
+}
+
 type Pagina<T> = { results: T[]; paging: { total: number; offset: number; limit: number } };
 
 /**

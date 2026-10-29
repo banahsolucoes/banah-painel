@@ -1,4 +1,4 @@
-/** Abas de um cliente: Vendas · Estoque · Custos. */
+/** Abas de um cliente: Vendas · Estoque · Preços · Custos. */
 export function Navegacao({
   clienteId,
   nome,
@@ -6,11 +6,12 @@ export function Navegacao({
 }: {
   clienteId: string;
   nome: string;
-  atual: "vendas" | "estoque" | "custos";
+  atual: "vendas" | "estoque" | "precos" | "custos";
 }) {
   const abas = [
     { id: "vendas", rotulo: "Vendas", href: `/clientes/${clienteId}/vendas` },
     { id: "estoque", rotulo: "Estoque e previsão", href: `/clientes/${clienteId}/estoque` },
+    { id: "precos", rotulo: "Preços", href: `/clientes/${clienteId}/precos` },
     { id: "custos", rotulo: "Custos", href: `/clientes/${clienteId}/custos` },
   ] as const;
   return (
