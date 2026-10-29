@@ -9,7 +9,7 @@ import { salvarConfigEstoque } from "./actions";
 export const dynamic = "force-dynamic";
 
 const ROTULO: Record<StatusEstoque, string> = {
-  ruptura_iminente: "Ruptura iminente",
+  ruptura_iminente: "Ruptura",
   comprar: "Comprar",
   ok: "OK",
   excesso: "Excesso",
