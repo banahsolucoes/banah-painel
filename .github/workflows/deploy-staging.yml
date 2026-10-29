@@ -54,10 +54,13 @@ jobs:
       - name: Publicar no Vercel (ambiente staging)
         id: deploy
         run: |
-          npx vercel@latest pull --yes --environment=staging --token=${{ secrets.VERCEL_TOKEN }}
-          npx vercel@latest build --target=staging --token=${{ secrets.VERCEL_TOKEN }}
-          url=$(npx vercel@latest deploy --prebuilt --target=staging --token=${{ secrets.VERCEL_TOKEN }})
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          falhar() { echo "::error::Vercel falhou em '$1': $(grep -v '^\s*$' vercel.log | tail -15 | tr '\n' ' ')"; exit 1; }
+          npx vercel@latest pull --yes --environment=staging --token="$VERCEL_TOKEN" > vercel.log 2>&1 || falhar pull
+          npx vercel@latest build --target=staging --token="$VERCEL_TOKEN" > vercel.log 2>&1 || falhar build
+          npx vercel@latest deploy --prebuilt --target=staging --token="$VERCEL_TOKEN" > vercel.log 2>&1 || falhar deploy
+          tail -3 vercel.log
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: Conferir saúde
         run: |
