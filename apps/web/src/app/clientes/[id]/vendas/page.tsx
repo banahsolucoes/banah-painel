@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { BotaoEnviar } from "@/app/botao-enviar";
 import { Navegacao } from "@/app/clientes/[id]/navegacao";
 import { sessaoAtual } from "@/lib/sessao";
+import { curto } from "@/lib/texto";
 import { carregarVendas, PERIODOS, type Periodo } from "@/lib/vendas";
 import { salvarImposto } from "./actions";
 
@@ -262,7 +263,9 @@ export default async function Vendas({
             {d.top.map((t) => (
               <tr key={t.item_id}>
                 <td>
-                  <div className="titulo-anuncio">{t.titulo ?? t.item_id}</div>
+                  <div className="titulo-anuncio" title={t.titulo ?? undefined}>
+                    {curto(t.titulo ?? t.item_id)}
+                  </div>
                   <div className="suave pequeno">
                     {t.sku ? `SKU ${t.sku} · ` : ""}
                     {t.itens.length > 1 ? `${t.itens.length} anúncios: ` : ""}

@@ -4,6 +4,7 @@ import { BotaoEnviar } from "@/app/botao-enviar";
 import { Navegacao } from "@/app/clientes/[id]/navegacao";
 import { carregarEstoque, type LinhaEstoque } from "@/lib/estoque";
 import { sessaoAtual } from "@/lib/sessao";
+import { curto } from "@/lib/texto";
 import { salvarConfigEstoque } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -166,13 +167,13 @@ export default async function Estoque({
             {linhas.map((l) => (
               <tr key={l.itemId}>
                 <td>
-                  <div className="titulo-anuncio">
+                  <div className="titulo-anuncio" title={l.titulo}>
                     {l.permalink ? (
                       <a href={l.permalink} target="_blank" rel="noreferrer">
-                        {l.titulo}
+                        {curto(l.titulo)}
                       </a>
                     ) : (
-                      l.titulo
+                      curto(l.titulo)
                     )}
                   </div>
                   <div className="suave pequeno">
