@@ -15,5 +15,9 @@ jobs:
     steps:
       - name: Chamar /api/cron/tick
         run: |
-          curl -fsS --max-time 300 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ vars.APP_URL }}/api/cron/tick"
+          codigo=$(curl -sS --max-time 300 -o resposta.txt -w '%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" "${{ vars.APP_URL }}/api/cron/tick" || echo 000)
+          echo "::notice::tick ${codigo}: $(head -c 500 resposta.txt 2>/dev/null)"
+          [ "$codigo" = "200" ] || { echo "::error::tick respondeu ${codigo}"; exit 1; }
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
