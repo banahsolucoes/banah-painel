@@ -1,10 +1,10 @@
 import { camposDoToken, mlGet, trocarCodigo } from "@banah/connector-ml";
 import { contasCanal, db } from "@banah/db";
-import { enfileirar } from "@banah/jobs";
-import { diaLocal, log } from "@banah/shared";
+import { log } from "@banah/shared";
 import { and, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { chaveTokens, mlApp } from "@/lib/config";
+import { agendarConta } from "@/lib/handlers";
 import { exigirAdmin } from "@/lib/sessao";
 
 export const dynamic = "force-dynamic";
@@ -57,16 +57,10 @@ export async function GET(request: Request) {
       target: [contasCanal.canal, contasCanal.sellerId],
       set: { ...campos, atualizadoEm: new Date() },
     })
-    .returning({ id: contasCanal.id });
+    .returning();
 
-  if (conta) {
-    await enfileirar(db(), {
-      clienteId,
-      tipo: "ml.verificar_token",
-      chaveUnica: `ml.verificar_token:${conta.id}:${diaLocal()}`,
-      payload: { contaId: conta.id },
-    });
-  }
+  // Já agenda token, carga inicial de 91 dias e as coletas recorrentes.
+  if (conta) await agendarConta(conta);
   log.info("conta ML conectada", { clienteId, sellerId });
   return voltar(request, `Conta ${eu.nickname} conectada.`);
 }

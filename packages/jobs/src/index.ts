@@ -9,34 +9,44 @@ export type Job = typeof jobs.$inferSelect;
 export type Handler = (job: Job) => Promise<void>;
 
 /**
- * Enfileira uma tarefa. Se já existe uma com a mesma chave e ainda não foi concluída,
- * não cria outra (idempotente). Se a anterior concluiu ou falhou, reabre.
+ * Enfileira uma tarefa. Mesma chave nunca gera tarefa duplicada: se já existe,
+ * não faz nada. Com `reabrir: true`, uma tarefa já concluída ou que falhou
+ * volta para a fila (usado para reprocessar de propósito).
  */
 export async function enfileirar(
   db: Db,
-  t: { clienteId: string; tipo: string; chaveUnica: string; payload?: unknown; executarEm?: Date },
+  t: {
+    clienteId: string;
+    tipo: string;
+    chaveUnica: string;
+    payload?: unknown;
+    executarEm?: Date;
+    reabrir?: boolean;
+  },
 ) {
-  await db
-    .insert(jobs)
-    .values({
-      clienteId: t.clienteId,
-      tipo: t.tipo,
-      chaveUnica: t.chaveUnica,
-      payload: t.payload ?? {},
-      executarEm: t.executarEm ?? new Date(),
-    })
-    .onConflictDoUpdate({
-      target: jobs.chaveUnica,
-      set: {
-        status: "pendente",
-        tentativas: 0,
-        payload: sql`excluded.payload`,
-        executarEm: sql`excluded.executar_em`,
-        ultimoErro: null,
-        atualizadoEm: sql`now()`,
-      },
-      setWhere: sql`${jobs.status} in ('concluido', 'falhou')`,
-    });
+  const insercao = db.insert(jobs).values({
+    clienteId: t.clienteId,
+    tipo: t.tipo,
+    chaveUnica: t.chaveUnica,
+    payload: t.payload ?? {},
+    executarEm: t.executarEm ?? new Date(),
+  });
+  if (!t.reabrir) {
+    await insercao.onConflictDoNothing({ target: jobs.chaveUnica });
+    return;
+  }
+  await insercao.onConflictDoUpdate({
+    target: jobs.chaveUnica,
+    set: {
+      status: "pendente",
+      tentativas: 0,
+      payload: sql`excluded.payload`,
+      executarEm: sql`excluded.executar_em`,
+      ultimoErro: null,
+      atualizadoEm: sql`now()`,
+    },
+    setWhere: sql`${jobs.status} in ('concluido', 'falhou')`,
+  });
 }
 
 /**

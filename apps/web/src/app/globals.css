@@ -124,3 +124,88 @@ input {
   border-radius: 8px;
   margin: 16px 0;
 }
+
+a {
+  color: var(--marca);
+}
+label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--suave);
+}
+label input {
+  min-width: 180px;
+}
+.selo.neutro {
+  color: var(--suave);
+}
+.pequeno {
+  font-size: 13px;
+}
+.forte {
+  font-weight: 700;
+}
+
+.resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+.resumo-item {
+  display: grid;
+  gap: 2px;
+  min-width: 140px;
+  margin: 0;
+}
+.resumo-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--texto);
+}
+.resumo-item.erro .resumo-num {
+  color: var(--erro);
+}
+.resumo-item.alerta .resumo-num {
+  color: var(--alerta);
+}
+.resumo-item.ok .resumo-num {
+  color: var(--ok);
+}
+
+.tabela-rolagem {
+  overflow-x: auto;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+}
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  background: var(--cartao);
+}
+.tabela th,
+.tabela td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--borda);
+  text-align: left;
+  vertical-align: top;
+}
+.tabela th {
+  font-size: 13px;
+  color: var(--suave);
+  font-weight: 600;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--cartao);
+}
+.tabela .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.titulo-anuncio {
+  max-width: 420px;
+}

@@ -84,9 +84,15 @@ export default async function Inicio({
                     </BotaoEnviar>
                   </form>
                 )}
-                <a className="botao" href={`/api/auth/ml/start?cliente=${c.id}`}>
-                  Conectar Mercado Livre
-                </a>
+                {doCliente.length > 0 ? (
+                  <a className="botao" href={`/clientes/${c.id}/estoque`}>
+                    Estoque e previsão
+                  </a>
+                ) : (
+                  <a className="botao" href={`/api/auth/ml/start?cliente=${c.id}`}>
+                    Conectar Mercado Livre
+                  </a>
+                )}
               </div>
             </div>
             {doCliente.map((k) => (

@@ -168,3 +168,103 @@ export const acoes = pgTable(
   },
   (t) => [index("acoes_cliente_idx").on(t.clienteId, t.criadoEm)],
 );
+
+// ── Fase 1: anúncios, pedidos e estoque ────────────────────────────────────
+
+/** Um anúncio do canal. O histórico é sempre agrupado por item_id, nunca por SKU. */
+export const anuncios = pgTable(
+  "anuncios",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clienteId: uuid("cliente_id")
+      .notNull()
+      .references(() => clientes.id, { onDelete: "cascade" }),
+    contaId: uuid("conta_id")
+      .notNull()
+      .references(() => contasCanal.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    titulo: text("titulo").notNull(),
+    sku: text("sku"),
+    precoCentavos: integer("preco_centavos").notNull(),
+    status: text("status").notNull(),
+    /** fulfillment = Full; cross_docking, xd_drop_off, self_service (Flex) etc. */
+    logistica: text("logistica"),
+    catalogo: boolean("catalogo").notNull().default(false),
+    catalogProductId: text("catalog_product_id"),
+    permalink: text("permalink"),
+    thumbnail: text("thumbnail"),
+    /** Data de criação do anúncio no canal: limita o histórico de vendas possível. */
+    canalCriadoEm: timestamp("canal_criado_em", { withTimezone: true }),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [
+    uniqueIndex("anuncios_item_uq").on(t.clienteId, t.itemId),
+    index("anuncios_conta_idx").on(t.contaId),
+  ],
+);
+
+export const pedidos = pgTable(
+  "pedidos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clienteId: uuid("cliente_id")
+      .notNull()
+      .references(() => clientes.id, { onDelete: "cascade" }),
+    contaId: uuid("conta_id")
+      .notNull()
+      .references(() => contasCanal.id, { onDelete: "cascade" }),
+    orderId: text("order_id").notNull(),
+    packId: text("pack_id"),
+    status: text("status").notNull(),
+    totalCentavos: integer("total_centavos").notNull(),
+    canalCriadoEm: timestamp("canal_criado_em", { withTimezone: true }).notNull(),
+    canalAtualizadoEm: timestamp("canal_atualizado_em", { withTimezone: true }),
+    /** Dia da venda no fuso de São Paulo. */
+    diaVenda: date("dia_venda").notNull(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [
+    uniqueIndex("pedidos_order_uq").on(t.clienteId, t.orderId),
+    index("pedidos_dia_idx").on(t.clienteId, t.diaVenda),
+  ],
+);
+
+export const pedidoItens = pgTable(
+  "pedido_itens",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    clienteId: uuid("cliente_id")
+      .notNull()
+      .references(() => clientes.id, { onDelete: "cascade" }),
+    orderId: text("order_id").notNull(),
+    itemId: text("item_id").notNull(),
+    /** "" quando o anúncio não tem variação (permite chave única). */
+    variacaoId: text("variacao_id").notNull().default(""),
+    sku: text("sku"),
+    titulo: text("titulo"),
+    quantidade: integer("quantidade").notNull(),
+    precoUnitCentavos: integer("preco_unit_centavos").notNull(),
+  },
+  (t) => [
+    uniqueIndex("pedido_itens_uq").on(t.clienteId, t.orderId, t.itemId, t.variacaoId),
+    index("pedido_itens_item_idx").on(t.clienteId, t.itemId),
+  ],
+);
+
+/** Uma foto do estoque por anúncio, por local, por dia. */
+export const estoqueDiario = pgTable(
+  "estoque_diario",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    clienteId: uuid("cliente_id")
+      .notNull()
+      .references(() => clientes.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    /** FULL_ML, FULL_SHOPEE ou PROPRIO */
+    local: text("local").notNull(),
+    dia: date("dia").notNull(),
+    disponivel: integer("disponivel").notNull(),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [uniqueIndex("estoque_diario_uq").on(t.clienteId, t.itemId, t.local, t.dia)],
+);
