@@ -9,7 +9,9 @@ const semEspacos = (v: string) =>
     ? "tem espaço no começo ou no fim"
     : /^["'].*["']$/.test(v)
       ? "está entre aspas"
-      : null;
+      : /^<|>$/.test(v)
+        ? "ainda está entre < e >"
+        : null;
 
 const REGRAS: Regra[] = [
   {
