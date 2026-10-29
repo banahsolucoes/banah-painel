@@ -12,6 +12,8 @@ concurrency:
 
 jobs:
   producao:
+    # Liga quando a variável DEPLOY_ATIVO=true for criada no GitHub (Settings → Variables).
+    if: ${{ vars.DEPLOY_ATIVO == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production

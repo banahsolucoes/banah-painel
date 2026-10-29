@@ -14,7 +14,8 @@ concurrency:
 
 jobs:
   staging:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Liga quando a variável DEPLOY_ATIVO=true for criada no GitHub (Settings → Variables).
+    if: ${{ github.event.workflow_run.conclusion == 'success' && vars.DEPLOY_ATIVO == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: staging
