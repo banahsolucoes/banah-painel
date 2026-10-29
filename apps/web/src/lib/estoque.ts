@@ -31,6 +31,7 @@ export type LinhaEstoque = ResultadoEstoque & {
   statusAnuncio: string;
   local: string;
   disponivel: number;
+  unidadesFullMl: number;
   vendido60d: number;
   permalink: string | null;
 };
@@ -69,11 +70,25 @@ export async function carregarEstoque(clienteId: string) {
 
   const lista = await db().select().from(anuncios).where(eq(anuncios.clienteId, clienteId));
 
+  // Última foto de cada anúncio, somando os locais (Full + próprio) do mesmo dia.
   const estoque = (await db().execute(sql`
-    select distinct on (item_id, local) item_id, local, disponivel, dia::text as dia
-    from estoque_diario where cliente_id = ${clienteId}
-    order by item_id, local, dia desc
-  `)) as unknown as { item_id: string; local: string; disponivel: number; dia: string }[];
+    with ult as (
+      select item_id, max(dia) as dia from estoque_diario
+      where cliente_id = ${clienteId} group by item_id
+    )
+    select e.item_id, sum(e.disponivel)::int as disponivel, e.dia::text as dia,
+      array_agg(e.local order by e.local) as locais,
+      coalesce(sum(e.disponivel) filter (where e.local = 'FULL_ML'), 0)::int as full_ml
+    from estoque_diario e join ult on ult.item_id = e.item_id and ult.dia = e.dia
+    where e.cliente_id = ${clienteId}
+    group by e.item_id, e.dia
+  `)) as unknown as {
+    item_id: string;
+    disponivel: number;
+    dia: string;
+    locais: string[];
+    full_ml: number;
+  }[];
 
   const vendas = (await db().execute(sql`
     select pi.item_id, p.dia_venda::text as dia, sum(pi.quantidade)::int as qtd
@@ -119,7 +134,8 @@ export async function carregarEstoque(clienteId: string) {
         titulo: a.titulo,
         sku: a.sku,
         statusAnuncio: a.status,
-        local: e?.local ?? (a.logistica === "fulfillment" ? "FULL_ML" : "PROPRIO"),
+        local: e?.locais.join("+") ?? (a.logistica === "fulfillment" ? "FULL_ML" : "PROPRIO"),
+        unidadesFullMl: e?.full_ml ?? 0,
         disponivel,
         vendido60d: vendasDiarias.reduce((s, v) => s + v, 0),
         permalink: a.permalink,
@@ -132,9 +148,7 @@ export async function carregarEstoque(clienteId: string) {
           (y.coberturaDias ?? Number.POSITIVE_INFINITY),
     );
 
-  const unidadesFull = linhas
-    .filter((l) => l.local === "FULL_ML")
-    .reduce((s, l) => s + l.disponivel, 0);
+  const unidadesFull = linhas.reduce((s, l) => s + l.unidadesFullMl, 0);
   const ultimaFoto = estoque.reduce((max, e) => (e.dia > max ? e.dia : max), "");
 
   return {

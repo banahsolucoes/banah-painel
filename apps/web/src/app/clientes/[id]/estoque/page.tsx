@@ -80,7 +80,7 @@ export default async function Estoque({
         </div>
       )}
 
-      <div className="resumo">
+      <div className="resumo secao tom-estoque">
         {(["ruptura_iminente", "comprar", "ok", "excesso", "parado"] as StatusEstoque[]).map(
           (s) => (
             <div key={s} className={`cartao resumo-item ${CLASSE[s]}`}>
@@ -133,7 +133,12 @@ export default async function Estoque({
                     {l.statusAnuncio !== "active" ? ` · ${l.statusAnuncio}` : ""}
                   </div>
                 </td>
-                <td>{LOCAL[l.local] ?? l.local}</td>
+                <td>
+                  {l.local
+                    .split("+")
+                    .map((x) => LOCAL[x] ?? x)
+                    .join(" + ")}
+                </td>
                 <td className="num">{n0(l.disponivel)}</td>
                 <td className="num">{l.diasHistorico > 0 ? n1(l.vendaMediaDiaria) : "—"}</td>
                 <td className="num">{n0(l.vendido60d)}</td>

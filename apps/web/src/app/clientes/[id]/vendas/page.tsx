@@ -136,93 +136,108 @@ export default async function Vendas({
         </p>
       )}
 
-      <h2>Vendas</h2>
-      <div className="indicadores">
-        <Cartao rotulo="Valor vendido" valor={reais(a.faturamentoCentavos)}>
-          <Variacao agora={a.faturamentoCentavos} antes={b.faturamentoCentavos} />
-        </Cartao>
-        <Cartao rotulo="Pedidos" valor={num(a.pedidos)} detalhe={`${num(a.unidades)} unidades`}>
-          <Variacao agora={a.pedidos} antes={b.pedidos} />
-        </Cartao>
-        <Cartao rotulo="Ticket médio" valor={reais(a.ticketMedioCentavos)}>
-          <Variacao agora={a.ticketMedioCentavos} antes={b.ticketMedioCentavos} />
-        </Cartao>
-        <Cartao
-          rotulo="Receita líquida"
-          valor={reais(a.receitaLiquidaCentavos)}
-          detalhe={`tarifas ${reais(d.atual.tarifasCentavos)} · frete ${reais(d.atual.freteCentavos)}`}
-        />
-        <Cartao
-          rotulo="Margem"
-          valor={
-            a.margemCentavos === null ? "—" : `${reais(a.margemCentavos)} · ${pct(a.margemPct)}`
-          }
-          detalhe={
-            a.impostoCentavos === null
-              ? "configure o imposto"
-              : `custo ${reais(d.atual.custoCentavos)} · imposto ${reais(a.impostoCentavos)} · ads ${reais(a.adsCustoCentavos)}`
-          }
-        />
-      </div>
+      <section className="secao tom-vendas">
+        <h2>Vendas</h2>
+        <div className="indicadores">
+          <Cartao rotulo="Valor vendido" valor={reais(a.faturamentoCentavos)}>
+            <Variacao agora={a.faturamentoCentavos} antes={b.faturamentoCentavos} />
+          </Cartao>
+          <Cartao rotulo="Pedidos" valor={num(a.pedidos)} detalhe={`${num(a.unidades)} unidades`}>
+            <Variacao agora={a.pedidos} antes={b.pedidos} />
+          </Cartao>
+          <Cartao rotulo="Ticket médio" valor={reais(a.ticketMedioCentavos)}>
+            <Variacao agora={a.ticketMedioCentavos} antes={b.ticketMedioCentavos} />
+          </Cartao>
+        </div>
+      </section>
 
-      <h2>Ads</h2>
-      <div className="indicadores">
-        <Cartao rotulo="Gasto com ads" valor={reais(a.adsCustoCentavos)}>
-          <Variacao agora={a.adsCustoCentavos} antes={b.adsCustoCentavos} inverso />
-        </Cartao>
-        <Cartao rotulo="CPC" valor={reais(a.cpcCentavos)} detalhe={`CTR ${pct(a.ctrPct, 2)}`} />
-        <Cartao
-          rotulo="ROAS"
-          valor={a.roas === null ? "—" : `${a.roas.toFixed(1)}x`}
-          detalhe={`receita ads ${reais(a.adsReceitaCentavos)}`}
-        />
-        <Cartao rotulo="ACOS" valor={pct(a.acosPct)}>
-          <Variacao agora={a.acosPct} antes={b.acosPct} inverso />
-        </Cartao>
-        <Cartao rotulo="TACOS" valor={pct(a.tacosPct)} detalhe="gasto ÷ faturamento total" />
-      </div>
-      {periodo === "hoje" && (
-        <p className="suave pequeno">
-          Ads de hoje são parciais: o Mercado Livre consolida as métricas por volta das 10h do dia
-          seguinte.
-        </p>
-      )}
+      <section className="secao tom-resultado">
+        <h2>Resultado</h2>
+        <div className="indicadores">
+          <Cartao
+            rotulo="Receita líquida"
+            valor={reais(a.receitaLiquidaCentavos)}
+            detalhe={`tarifas ${reais(d.atual.tarifasCentavos)} · frete ${reais(d.atual.freteCentavos)}`}
+          />
+          <Cartao
+            rotulo="Margem"
+            valor={
+              a.margemCentavos === null ? "—" : `${reais(a.margemCentavos)} · ${pct(a.margemPct)}`
+            }
+            detalhe={
+              a.impostoCentavos === null
+                ? "configure o imposto"
+                : `custo ${reais(d.atual.custoCentavos)} · imposto ${reais(a.impostoCentavos)} · ads ${reais(a.adsCustoCentavos)}`
+            }
+          />
+        </div>
+      </section>
 
-      <h2>Reputação</h2>
-      <div className="indicadores">
-        <Cartao
-          rotulo="Termômetro"
-          valor={rep.rotulo}
-          detalhe={d.reputacao?.medalha ? `MercadoLíder ${d.reputacao.medalha}` : undefined}
-        >
-          <span className={`selo ${rep.cor}`}>
-            {d.reputacao ? `foto de ${dataBr(d.reputacao.dia_texto)}` : "aguardando coleta"}
-          </span>
-        </Cartao>
-        <Cartao
-          rotulo="Reclamações"
-          valor={pct(
-            d.reputacao?.reclamacoes_taxa != null ? d.reputacao.reclamacoes_taxa * 100 : null,
-            2,
-          )}
-        />
-        <Cartao
-          rotulo="Atrasos no envio"
-          valor={pct(d.reputacao?.atrasos_taxa != null ? d.reputacao.atrasos_taxa * 100 : null, 2)}
-        />
-        <Cartao
-          rotulo="Cancelamentos"
-          valor={pct(
-            d.reputacao?.cancelamentos_taxa != null ? d.reputacao.cancelamentos_taxa * 100 : null,
-            2,
-          )}
-        />
-        <Cartao
-          rotulo="Vendas no período do ML"
-          valor={num(d.reputacao?.vendas_periodo ?? null)}
-          detalhe="base do termômetro"
-        />
-      </div>
+      <section className="secao tom-ads">
+        <h2>Ads</h2>
+        <div className="indicadores">
+          <Cartao rotulo="Gasto com ads" valor={reais(a.adsCustoCentavos)}>
+            <Variacao agora={a.adsCustoCentavos} antes={b.adsCustoCentavos} inverso />
+          </Cartao>
+          <Cartao rotulo="CPC" valor={reais(a.cpcCentavos)} detalhe={`CTR ${pct(a.ctrPct, 2)}`} />
+          <Cartao
+            rotulo="ROAS"
+            valor={a.roas === null ? "—" : `${a.roas.toFixed(1)}x`}
+            detalhe={`receita ads ${reais(a.adsReceitaCentavos)}`}
+          />
+          <Cartao rotulo="ACOS" valor={pct(a.acosPct)}>
+            <Variacao agora={a.acosPct} antes={b.acosPct} inverso />
+          </Cartao>
+          <Cartao rotulo="TACOS" valor={pct(a.tacosPct)} detalhe="gasto ÷ faturamento total" />
+        </div>
+        {periodo === "hoje" && (
+          <p className="suave pequeno">
+            Ads de hoje são parciais: o Mercado Livre consolida as métricas por volta das 10h do dia
+            seguinte.
+          </p>
+        )}
+      </section>
+
+      <section className="secao tom-reputacao">
+        <h2>Reputação</h2>
+        <div className="indicadores">
+          <Cartao
+            rotulo="Termômetro"
+            valor={rep.rotulo}
+            detalhe={d.reputacao?.medalha ? `MercadoLíder ${d.reputacao.medalha}` : undefined}
+          >
+            <span className={`selo ${rep.cor}`}>
+              {d.reputacao ? `foto de ${dataBr(d.reputacao.dia_texto)}` : "aguardando coleta"}
+            </span>
+          </Cartao>
+          <Cartao
+            rotulo="Reclamações"
+            valor={pct(
+              d.reputacao?.reclamacoes_taxa != null ? d.reputacao.reclamacoes_taxa * 100 : null,
+              2,
+            )}
+          />
+          <Cartao
+            rotulo="Atrasos no envio"
+            valor={pct(
+              d.reputacao?.atrasos_taxa != null ? d.reputacao.atrasos_taxa * 100 : null,
+              2,
+            )}
+          />
+          <Cartao
+            rotulo="Cancelamentos"
+            valor={pct(
+              d.reputacao?.cancelamentos_taxa != null ? d.reputacao.cancelamentos_taxa * 100 : null,
+              2,
+            )}
+          />
+          <Cartao
+            rotulo="Vendas no período do ML"
+            valor={num(d.reputacao?.vendas_periodo ?? null)}
+            detalhe="base do termômetro"
+          />
+        </div>
+      </section>
 
       <h2>Anúncios do período</h2>
       <div className="tabela-rolagem">

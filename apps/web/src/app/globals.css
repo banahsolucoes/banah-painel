@@ -1,23 +1,40 @@
 :root {
-  --fundo: #f6f7f9;
+  /* Marca BANAH (petróleo). Provisório até confirmar os hex do site. */
+  --marca: #0b5563;
+  --marca-suave: #e3f0f2;
+  --fundo: #f4f6f7;
   --cartao: #ffffff;
-  --texto: #14181f;
-  --suave: #5b6472;
-  --borda: #dfe3e8;
-  --marca: #0150af;
-  --ok: #1a7f4b;
-  --alerta: #b54708;
-  --erro: #b42318;
+  --texto: #142126;
+  --suave: #5a6b71;
+  --borda: #dbe3e5;
+  --ok: #15803d;
+  --alerta: #b45309;
+  --erro: #b91c1c;
+  /* Um tom por assunto, para bater o olho e saber o que é. */
+  --tom-vendas: #0e7490;
+  --tom-resultado: #15803d;
+  --tom-ads: #c2410c;
+  --tom-reputacao: #7c3aed;
+  --tom-estoque: #1d4ed8;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fundo: #0f1217;
-    --cartao: #171b22;
-    --texto: #eef1f5;
-    --suave: #9aa4b2;
-    --borda: #2a313c;
-    --marca: #5b9bf0;
+    --marca: #3fa7b8;
+    --marca-suave: #12303a;
+    --fundo: #0c1417;
+    --cartao: #131e22;
+    --texto: #e8f0f2;
+    --suave: #93a6ac;
+    --borda: #24363c;
+    --ok: #4ade80;
+    --alerta: #fbbf24;
+    --erro: #f87171;
+    --tom-vendas: #22d3ee;
+    --tom-resultado: #4ade80;
+    --tom-ads: #fb923c;
+    --tom-reputacao: #a78bfa;
+    --tom-estoque: #60a5fa;
   }
 }
 
@@ -30,7 +47,7 @@ body {
   background: var(--fundo);
   color: var(--texto);
   font:
-    17px / 1.5 system-ui,
+    14px / 1.5 system-ui,
     -apple-system,
     "Segoe UI",
     Roboto,
@@ -43,12 +60,55 @@ main {
   padding: 24px 16px 64px;
 }
 h1 {
-  font-size: 28px;
+  font-size: 20px;
   margin: 0 0 4px;
+  color: var(--marca);
 }
 h2 {
-  font-size: 20px;
-  margin: 32px 0 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--suave);
+  margin: 24px 0 10px;
+}
+
+/* Seções com cor própria: vendas, resultado, ads, reputação, estoque. */
+.secao {
+  --acento: var(--marca);
+}
+.tom-vendas {
+  --acento: var(--tom-vendas);
+}
+.tom-resultado {
+  --acento: var(--tom-resultado);
+}
+.tom-ads {
+  --acento: var(--tom-ads);
+}
+.tom-reputacao {
+  --acento: var(--tom-reputacao);
+}
+.tom-estoque {
+  --acento: var(--tom-estoque);
+}
+.secao h2 {
+  color: var(--acento);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.secao h2::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--acento);
+}
+.secao .cartao {
+  border-top: 3px solid var(--acento);
+}
+.secao .indicador-valor {
+  color: var(--acento);
 }
 p.suave,
 .suave {
@@ -58,9 +118,9 @@ p.suave,
 .cartao {
   background: var(--cartao);
   border: 1px solid var(--borda);
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 12px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
 }
 
 .linha {
@@ -76,8 +136,8 @@ button {
   background: var(--marca);
   color: #fff;
   border: 0;
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 7px;
+  padding: 7px 14px;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -92,16 +152,16 @@ button {
 
 input {
   font: inherit;
-  padding: 10px 12px;
+  padding: 7px 10px;
   border: 1px solid var(--borda);
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--cartao);
   color: var(--texto);
-  min-width: 260px;
+  min-width: 240px;
 }
 
 .selo {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   padding: 2px 10px;
   border-radius: 999px;
@@ -120,7 +180,7 @@ input {
 .aviso {
   background: var(--cartao);
   border-left: 4px solid var(--marca);
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 8px;
   margin: 16px 0;
 }
@@ -131,7 +191,7 @@ a {
 label {
   display: grid;
   gap: 4px;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--suave);
 }
 label input {
@@ -141,7 +201,7 @@ label input {
   color: var(--suave);
 }
 .pequeno {
-  font-size: 13px;
+  font-size: 12px;
 }
 .forte {
   font-weight: 700;
@@ -160,7 +220,7 @@ label input {
   margin: 0;
 }
 .resumo-num {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--texto);
 }
@@ -182,18 +242,23 @@ label input {
 .tabela {
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: 13px;
   background: var(--cartao);
 }
 .tabela th,
 .tabela td {
-  padding: 10px 12px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--borda);
   text-align: left;
   vertical-align: top;
 }
+.tabela tbody tr:hover {
+  background: var(--marca-suave);
+}
 .tabela th {
-  font-size: 13px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--suave);
   font-weight: 600;
   white-space: nowrap;
@@ -228,7 +293,7 @@ label input {
   border-radius: 999px;
   text-decoration: none;
   color: var(--texto);
-  font-size: 14px;
+  font-size: 13px;
 }
 .aba.ativa {
   background: var(--marca);
@@ -237,8 +302,8 @@ label input {
 }
 .indicadores {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
 }
 .indicador {
   display: grid;
@@ -246,7 +311,7 @@ label input {
   margin: 0;
 }
 .indicador-valor {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -260,14 +325,14 @@ label input {
   color: var(--erro);
 }
 .barra {
-  height: 10px;
+  height: 8px;
   border-radius: 4px;
-  background: var(--marca);
+  background: var(--tom-vendas);
   min-width: 2px;
 }
 textarea {
   font:
-    14px / 1.4 ui-monospace,
+    13px / 1.4 ui-monospace,
     monospace;
   padding: 10px 12px;
   border: 1px solid var(--borda);
@@ -275,4 +340,10 @@ textarea {
   background: var(--cartao);
   color: var(--texto);
   width: 100%;
+}
+.secao .resumo-item:not(.erro):not(.alerta):not(.ok) .resumo-num {
+  color: var(--acento);
+}
+.secao .resumo-item.cartao {
+  border-top: 3px solid var(--acento);
 }

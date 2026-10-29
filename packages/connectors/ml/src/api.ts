@@ -19,7 +19,37 @@ export type MlItem = {
   seller_custom_field?: string | null;
   attributes?: { id: string; value_name?: string | null }[];
   shipping?: { logistic_type?: string | null };
+  /** Produto do vendedor: o estoque real (por depósito) fica nele, não no anúncio. */
+  user_product_id?: string | null;
+  variations?: { id: number; available_quantity?: number; user_product_id?: string | null }[];
 };
+
+export type MlEstoqueLocal = { type: string; quantity: number };
+
+/**
+ * Estoque do produto por local (multi-origem). O available_quantity do anúncio pode
+ * ficar defasado quando o vendedor usa estoque por depósito.
+ */
+export async function buscarEstoqueProduto(token: string, userProductId: string) {
+  const r = await mlGet<{ locations?: MlEstoqueLocal[] }>(
+    token,
+    `/user-products/${userProductId}/stock`,
+  );
+  return r.locations ?? [];
+}
+
+/** meli_facility = Full; selling_address e seller_warehouse = estoque próprio. */
+export const localDoTipoEstoque = (tipo: string) =>
+  tipo === "meli_facility" ? "FULL_ML" : "PROPRIO";
+
+/** Ids de produto do anúncio (o do item ou os das variações), sem repetir. */
+export function produtosDoItem(item: MlItem): string[] {
+  const ids = [
+    item.user_product_id,
+    ...(item.variations ?? []).map((v) => v.user_product_id),
+  ].filter((x): x is string => Boolean(x));
+  return [...new Set(ids)];
+}
 
 export type MlPedido = {
   id: number;

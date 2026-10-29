@@ -12,15 +12,19 @@ import {
   contasCanal as tabelaContas,
 } from "@banah/db";
 import { deReais, diaLocal, log } from "@banah/shared";
-import { and, eq, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
 import {
   buscarAnunciante,
   buscarAnuncios,
+  buscarEstoqueProduto,
   buscarMetricasAds,
   buscarPedidos,
   buscarReputacao,
   custoFreteVendedor,
   listarIdsAnuncios,
+  localDoTipoEstoque,
+  type MlItem,
+  produtosDoItem,
   skuDoItem,
 } from "./api";
 import { MlErro } from "./http";
@@ -34,6 +38,42 @@ export const pedidoContaComoVenda = (status: string) => !STATUS_SEM_VENDA.has(st
 /** Local do estoque a partir do tipo logístico do anúncio. */
 export const localDoEstoque = (logistica?: string | null) =>
   logistica === "fulfillment" ? "FULL_ML" : "PROPRIO";
+
+/**
+ * Estoque do anúncio por local. Usa o estoque do produto (por depósito) quando o
+ * anúncio tem user_product_id; senão, o available_quantity do anúncio.
+ * O cache evita buscar duas vezes o mesmo produto (anúncio clássico + catálogo).
+ */
+export async function estoquePorLocal(
+  token: string,
+  item: MlItem,
+  cache: Map<string, Awaited<ReturnType<typeof buscarEstoqueProduto>> | null>,
+): Promise<Map<string, number>> {
+  const porLocal = new Map<string, number>();
+  const produtos = produtosDoItem(item);
+  let completo = produtos.length > 0;
+  for (const up of produtos) {
+    if (!cache.has(up)) {
+      try {
+        cache.set(up, await buscarEstoqueProduto(token, up));
+      } catch (e) {
+        if (!(e instanceof MlErro) || e.status >= 500 || e.status === 429) throw e;
+        cache.set(up, null); // produto sem estoque por depósito: usa o do anúncio
+      }
+    }
+    const locais = cache.get(up);
+    if (!locais) {
+      completo = false;
+      break;
+    }
+    for (const l of locais) {
+      const local = localDoTipoEstoque(l.type);
+      porLocal.set(local, (porLocal.get(local) ?? 0) + (l.quantity ?? 0));
+    }
+  }
+  if (completo && porLocal.size > 0) return porLocal;
+  return new Map([[localDoEstoque(item.shipping?.logistic_type), item.available_quantity ?? 0]]);
+}
 
 const excluido = (coluna: string) => sql.raw(`excluded.${coluna}`);
 
@@ -90,6 +130,10 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
   return registrarColeta(db, conta, "ml.anuncios", { tipo: "ml.anuncios", dia: hoje }, async () => {
     const ids = await listarIdsAnuncios(token, conta.sellerId);
     const itens = await buscarAnuncios(token, ids);
+    const cacheProdutos = new Map<
+      string,
+      Awaited<ReturnType<typeof buscarEstoqueProduto>> | null
+    >();
 
     for (let i = 0; i < itens.length; i += 100) {
       const lote = itens.slice(i, i + 100);
@@ -129,17 +173,38 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
           },
         });
 
-      await db
-        .insert(estoqueDiario)
-        .values(
-          lote.map((it) => ({
+      const fotos: {
+        clienteId: string;
+        itemId: string;
+        local: string;
+        dia: string;
+        disponivel: number;
+      }[] = [];
+      for (const it of lote) {
+        for (const [local, qtd] of await estoquePorLocal(token, it, cacheProdutos)) {
+          fotos.push({
             clienteId: conta.clienteId,
             itemId: it.id,
-            local: localDoEstoque(it.shipping?.logistic_type),
+            local,
             dia: hoje,
-            disponivel: it.available_quantity ?? 0,
-          })),
-        )
+            disponivel: qtd,
+          });
+        }
+      }
+      // A foto de hoje é refeita inteira: um local que zerou não pode ficar com valor velho.
+      await db.delete(estoqueDiario).where(
+        and(
+          eq(estoqueDiario.clienteId, conta.clienteId),
+          eq(estoqueDiario.dia, hoje),
+          inArray(
+            estoqueDiario.itemId,
+            lote.map((it) => it.id),
+          ),
+        ),
+      );
+      await db
+        .insert(estoqueDiario)
+        .values(fotos)
         .onConflictDoUpdate({
           target: [
             estoqueDiario.clienteId,

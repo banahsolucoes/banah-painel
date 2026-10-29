@@ -28,6 +28,7 @@ const ITENS = [
     shipping: { logistic_type: "fulfillment" },
     date_created: "2026-05-10T10:00:00.000Z",
     seller_custom_field: "BR-516",
+    user_product_id: "MLBU1",
   },
   {
     id: "MLB2",
@@ -69,6 +70,14 @@ function respostaMl(url: string) {
   if (u.pathname === "/items") {
     const ids = (u.searchParams.get("ids") ?? "").split(",");
     return ids.map((id) => ({ code: 200, body: ITENS.find((i) => i.id === id) }));
+  }
+  if (u.pathname === "/user-products/MLBU1/stock") {
+    return {
+      locations: [
+        { type: "meli_facility", quantity: 30 },
+        { type: "selling_address", quantity: 41 },
+      ],
+    };
   }
   if (u.pathname === "/orders/search") {
     const offset = Number(u.searchParams.get("offset") ?? 0);
@@ -124,8 +133,12 @@ describe.skipIf(!temBanco)("coleta do Mercado Livre", () => {
       .select()
       .from(estoqueDiario)
       .where(eq(estoqueDiario.clienteId, clienteId));
-    expect(fotos.find((f) => f.itemId === "MLB1")?.local).toBe("FULL_ML");
+    // MLB1 usa o estoque por depósito do produto; MLB2 não tem produto e usa o do anúncio.
+    const mlb1 = fotos.filter((f) => f.itemId === "MLB1");
+    expect(mlb1.find((f) => f.local === "FULL_ML")?.disponivel).toBe(30);
+    expect(mlb1.find((f) => f.local === "PROPRIO")?.disponivel).toBe(41);
     expect(fotos.find((f) => f.itemId === "MLB2")?.local).toBe("PROPRIO");
+    expect(fotos.find((f) => f.itemId === "MLB2")?.disponivel).toBe(120);
 
     const [conf] = await db()
       .select()
