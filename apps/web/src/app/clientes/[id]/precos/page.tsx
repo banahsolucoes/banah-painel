@@ -81,8 +81,10 @@ export default async function Precos({
       <Navegacao clienteId={id} nome={cliente.nome} atual="precos" />
       <h1>Preços</h1>
       <p className="suave">
-        Alterar aqui muda o preço direto no Mercado Livre. Antes de aplicar, o painel confere o
-        preço atual no ML. Mudança de 30% para baixo ou 100% para cima pede confirmação.
+        <strong>Preço cheio</strong> é o preço do anúncio sem promoção; é ele que se altera aqui.{" "}
+        <strong>Comprador paga</strong> é o valor com a promoção ativa (no ML o cheio aparece
+        riscado). Antes de aplicar, o painel confere o preço no ML. Mudança de 30% para baixo ou
+        100% para cima pede confirmação. Custo / preço usa o valor que o comprador paga.
       </p>
 
       {msg && <div className="aviso">{msg}</div>}
@@ -100,7 +102,8 @@ export default async function Precos({
           <thead>
             <tr>
               <th>Produto (SKU)</th>
-              <th className="num">Preço atual</th>
+              <th className="num">Preço cheio</th>
+              <th className="num">Comprador paga</th>
               <th className="num">Custo</th>
               <th className="num">Custo / preço</th>
               <th className="num">Tarifa ML (30d)</th>
@@ -110,7 +113,7 @@ export default async function Precos({
           <tbody>
             {lista.length === 0 && (
               <tr>
-                <td colSpan={6} className="suave">
+                <td colSpan={7} className="suave">
                   Nenhum anúncio ativo encontrado.
                 </td>
               </tr>
@@ -119,6 +122,8 @@ export default async function Precos({
               const custo = a.sku ? (custos.get(a.sku) ?? null) : null;
               const t = tarifaPorItem.get(a.itemId);
               const pedeConfirmacao = confirmar === a.itemId;
+              const cheio = a.precoCheioCentavos ?? a.precoCentavos;
+              const emPromo = a.precoCentavos < cheio;
               return (
                 <tr key={a.itemId}>
                   <td>
@@ -138,7 +143,19 @@ export default async function Precos({
                       {a.logistica === "fulfillment" ? " · Full" : ""}
                     </div>
                   </td>
-                  <td className="num forte">{reais(a.precoCentavos)}</td>
+                  <td className="num forte">{reais(cheio)}</td>
+                  <td className="num">
+                    {emPromo ? (
+                      <>
+                        <div className="forte">{reais(a.precoCentavos)}</div>
+                        <span className="selo alerta" title={a.promocaoTipo ?? ""}>
+                          promoção −{Math.round((1 - a.precoCentavos / cheio) * 100)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="suave">mesmo</span>
+                    )}
+                  </td>
                   <td className="num">{reais(custo)}</td>
                   <td className="num">
                     {custo !== null && a.precoCentavos > 0
@@ -155,7 +172,9 @@ export default async function Precos({
                         inputMode="decimal"
                         required
                         defaultValue={
-                          pedeConfirmacao && valor ? valor : precoTexto(a.precoCentavos)
+                          pedeConfirmacao && valor
+                            ? valor
+                            : precoTexto(a.precoCheioCentavos ?? a.precoCentavos)
                         }
                         aria-label={`Novo preço de ${a.itemId}`}
                       />

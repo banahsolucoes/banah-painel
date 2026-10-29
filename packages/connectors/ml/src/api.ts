@@ -9,6 +9,8 @@ export type MlItem = {
   id: string;
   title: string;
   price: number;
+  /** Preço cheio quando o anúncio está com desconto. */
+  original_price?: number | null;
   available_quantity: number;
   status: string;
   catalog_listing?: boolean;
@@ -112,6 +114,20 @@ export async function buscarAnuncios(token: string, ids: string[]): Promise<MlIt
     }
   }
   return itens;
+}
+
+export type MlPrecoVenda = {
+  amount: number;
+  /** Preço cheio, presente só quando há promoção (é o valor riscado). */
+  regular_amount?: number | null;
+  metadata?: { promotion_type?: string | null; promotion_id?: string | null } | null;
+};
+
+/** Preço que o comprador vê no marketplace, e o cheio quando há promoção. */
+export function buscarPrecoVenda(token: string, itemId: string) {
+  return mlGet<MlPrecoVenda>(token, `/items/${itemId}/sale_price`, {
+    context: "channel_marketplace",
+  });
 }
 
 export function skuDoItem(item: MlItem): string | null {

@@ -3,13 +3,14 @@ import { mlEnviar, mlGet } from "./http";
 export type MlItemPreco = {
   id: string;
   price: number;
+  original_price?: number | null;
   status: string;
   variations?: { id: number; price: number }[];
 };
 
 export function buscarItemPreco(token: string, itemId: string) {
   return mlGet<MlItemPreco>(token, `/items/${itemId}`, {
-    attributes: "id,price,status,variations",
+    attributes: "id,price,original_price,status,variations",
   });
 }
 

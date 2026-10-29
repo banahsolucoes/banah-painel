@@ -71,6 +71,9 @@ function respostaMl(url: string) {
     const ids = (u.searchParams.get("ids") ?? "").split(",");
     return ids.map((id) => ({ code: 200, body: ITENS.find((i) => i.id === id) }));
   }
+  if (u.pathname === "/items/MLB1/sale_price") {
+    return { amount: 23.9, regular_amount: 29.9, metadata: { promotion_type: "PRICE_DISCOUNT" } };
+  }
   if (u.pathname === "/user-products/MLBU1/stock") {
     return {
       locations: [
@@ -126,7 +129,9 @@ describe.skipIf(!temBanco)("coleta do Mercado Livre", () => {
 
     const lista = await db().select().from(anuncios).where(eq(anuncios.clienteId, clienteId));
     const barra = lista.find((a) => a.itemId === "MLB1");
-    expect(barra?.precoCentavos).toBe(2390);
+    expect(barra?.precoCentavos).toBe(2390); // o que o comprador paga
+    expect(barra?.precoCheioCentavos).toBe(2990); // preço cheio, riscado
+    expect(barra?.promocaoTipo).toBe("PRICE_DISCOUNT");
     expect(barra?.sku).toBe("BR-516");
 
     const fotos = await db()

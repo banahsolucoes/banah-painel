@@ -3,6 +3,7 @@
 import {
   alterarPreco,
   buscarItemPreco,
+  buscarPrecoVenda,
   mensagemDoErro,
   obterAccessToken,
 } from "@banah/connector-ml";
@@ -42,8 +43,12 @@ export async function salvarPreco(form: FormData) {
     return voltar(destino, `Não consegui falar com o Mercado Livre: ${mensagemDoErro(e)}`);
   }
 
+  // O preço que se altera é o CHEIO. Com promoção ativa, item.price é o promocional,
+  // então o cheio vem do regular_amount do preço de venda.
   const item = await buscarItemPreco(token, itemId);
-  const atual = deReais(item.price);
+  const venda = await buscarPrecoVenda(token, itemId).catch(() => null);
+  const atual = deReais(venda?.regular_amount ?? item.original_price ?? item.price);
+  const promocional = venda?.regular_amount ? deReais(venda.amount) : null;
   const checagem = checarNovoPreco(atual, novo, confirmado);
   if (!checagem.ok) {
     return voltar(
@@ -80,17 +85,38 @@ export async function salvarPreco(form: FormData) {
 
   await db()
     .update(anuncios)
-    .set({ precoCentavos: novoCentavos, atualizadoEm: sql`now()` })
+    .set({
+      precoCheioCentavos: novoCentavos,
+      // Sem promoção, o comprador passa a pagar o preço novo; com promoção, o ML recalcula
+      // e a próxima coleta traz o valor certo.
+      ...(promocional === null ? { precoCentavos: novoCentavos } : {}),
+      atualizadoEm: sql`now()`,
+    })
     .where(and(eq(anuncios.clienteId, clienteId), eq(anuncios.itemId, itemId)));
   await db()
     .insert(acoes)
     .values({
       ...registro,
       status: "ok",
-      dados: { de: atual, para: novoCentavos, sku: anuncio.sku, titulo: anuncio.titulo },
+      dados: {
+        de: atual,
+        para: novoCentavos,
+        sku: anuncio.sku,
+        titulo: anuncio.titulo,
+        promocional,
+      },
     });
 
   const fmt = (c: number) =>
     (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  return voltar(destino, `${itemId}: preço alterado de ${fmt(atual)} para ${fmt(novoCentavos)}.`);
+  const avisoPromo =
+    promocional === null
+      ? ""
+      : novoCentavos <= promocional
+        ? " Atenção: o preço cheio ficou abaixo do promocional, o ML tira o anúncio da promoção."
+        : " O anúncio continua na promoção; o ML recalcula o desconto.";
+  return voltar(
+    destino,
+    `${itemId}: preço cheio alterado de ${fmt(atual)} para ${fmt(novoCentavos)}.${avisoPromo}`,
+  );
 }

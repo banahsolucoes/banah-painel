@@ -189,7 +189,12 @@ export const anuncios = pgTable(
     itemId: text("item_id").notNull(),
     titulo: text("titulo").notNull(),
     sku: text("sku"),
+    /** Preço que o comprador paga hoje (com promoção, se houver). */
     precoCentavos: integer("preco_centavos").notNull(),
+    /** Preço cheio (sem promoção). Igual ao preço quando não há promoção. */
+    precoCheioCentavos: integer("preco_cheio_centavos"),
+    /** Tipo da promoção ativa (DEAL, PRICE_DISCOUNT, SMART...), null sem promoção. */
+    promocaoTipo: text("promocao_tipo"),
     status: text("status").notNull(),
     /** fulfillment = Full; cross_docking, xd_drop_off, self_service (Flex) etc. */
     logistica: text("logistica"),

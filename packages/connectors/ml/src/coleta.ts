@@ -19,11 +19,13 @@ import {
   buscarEstoqueProduto,
   buscarMetricasAds,
   buscarPedidos,
+  buscarPrecoVenda,
   buscarReputacao,
   custoFreteVendedor,
   listarIdsAnuncios,
   localDoTipoEstoque,
   type MlItem,
+  type MlPrecoVenda,
   produtosDoItem,
   skuDoItem,
 } from "./api";
@@ -73,6 +75,27 @@ export async function estoquePorLocal(
   }
   if (completo && porLocal.size > 0) return porLocal;
   return new Map([[localDoEstoque(item.shipping?.logistic_type), item.available_quantity ?? 0]]);
+}
+
+/**
+ * Preço de venda (com promoção) e preço cheio dos anúncios ativos, 5 chamadas por vez.
+ * Anúncio que não responder fica de fora e usa o preço do próprio item.
+ */
+async function precosDeVenda(token: string, itens: MlItem[]) {
+  const mapa = new Map<string, MlPrecoVenda>();
+  const ativos = itens.filter((it) => it.status === "active");
+  for (let i = 0; i < ativos.length; i += 5) {
+    await Promise.all(
+      ativos.slice(i, i + 5).map(async (it) => {
+        try {
+          mapa.set(it.id, await buscarPrecoVenda(token, it.id));
+        } catch (e) {
+          if (!(e instanceof MlErro) || e.status === 429 || e.status >= 500) throw e;
+        }
+      }),
+    );
+  }
+  return mapa;
 }
 
 const excluido = (coluna: string) => sql.raw(`excluded.${coluna}`);
@@ -135,6 +158,8 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
       Awaited<ReturnType<typeof buscarEstoqueProduto>> | null
     >();
 
+    const precos = await precosDeVenda(token, itens);
+
     for (let i = 0; i < itens.length; i += 100) {
       const lote = itens.slice(i, i + 100);
       await db
@@ -146,7 +171,13 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
             itemId: it.id,
             titulo: it.title,
             sku: skuDoItem(it),
-            precoCentavos: deReais(it.price),
+            precoCentavos: deReais(precos.get(it.id)?.amount ?? it.price),
+            precoCheioCentavos: deReais(
+              precos.get(it.id)?.regular_amount ?? it.original_price ?? it.price,
+            ),
+            promocaoTipo: precos.get(it.id)?.regular_amount
+              ? (precos.get(it.id)?.metadata?.promotion_type ?? "PROMOCAO")
+              : null,
             status: it.status,
             logistica: it.shipping?.logistic_type ?? null,
             catalogo: Boolean(it.catalog_listing),
@@ -162,6 +193,8 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
             titulo: excluido("titulo"),
             sku: excluido("sku"),
             precoCentavos: excluido("preco_centavos"),
+            precoCheioCentavos: excluido("preco_cheio_centavos"),
+            promocaoTipo: excluido("promocao_tipo"),
             status: excluido("status"),
             logistica: excluido("logistica"),
             catalogo: excluido("catalogo"),

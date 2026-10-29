@@ -43,6 +43,13 @@
       "when": 1793307796503,
       "tag": "0005_fase2_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793314670403,
+      "tag": "0006_yielding_blob",
+      "breakpoints": true
     }
   ]
 }
