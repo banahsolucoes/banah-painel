@@ -2,7 +2,7 @@ import type { StatusEstoque } from "@banah/core";
 import { notFound, redirect } from "next/navigation";
 import { BotaoEnviar } from "@/app/botao-enviar";
 import { Navegacao } from "@/app/clientes/[id]/navegacao";
-import { carregarEstoque } from "@/lib/estoque";
+import { carregarEstoque, type LinhaEstoque } from "@/lib/estoque";
 import { sessaoAtual } from "@/lib/sessao";
 import { salvarConfigEstoque } from "./actions";
 
@@ -24,11 +24,62 @@ const CLASSE: Record<StatusEstoque, string> = {
   parado: "neutro",
   sem_dados: "neutro",
 };
-const LOCAL: Record<string, string> = {
-  FULL_ML: "Full ML",
-  FULL_SHOPEE: "Full Shopee",
-  PROPRIO: "Próprio",
+/** Colunas ordenáveis: clique no cabeçalho alterna crescente/decrescente. */
+const COLUNAS = {
+  titulo: { rotulo: "Produto (SKU)", num: false, valor: (l: LinhaEstoque) => l.titulo },
+  ativo: { rotulo: "Ativo (dias)", num: true, valor: (l: LinhaEstoque) => l.diasAtivo },
+  full: { rotulo: "Estoque Full", num: true, valor: (l: LinhaEstoque) => l.unidadesFullMl },
+  proprio: { rotulo: "Estoque próprio", num: true, valor: (l: LinhaEstoque) => l.unidadesProprio },
+  total: { rotulo: "Total", num: true, valor: (l: LinhaEstoque) => l.disponivel },
+  venda: {
+    rotulo: "Venda/dia",
+    num: true,
+    valor: (l: LinhaEstoque) => (l.diasHistorico > 0 ? l.vendaMediaDiaria : null),
+  },
+  vendido: { rotulo: "Vendido 60d", num: true, valor: (l: LinhaEstoque) => l.vendido60d },
+  cobertura: { rotulo: "Cobertura (dias)", num: true, valor: (l: LinhaEstoque) => l.coberturaDias },
+  previsao: { rotulo: "Previsão 60d", num: true, valor: (l: LinhaEstoque) => l.previsao60d },
+  comprar: { rotulo: "Comprar", num: true, valor: (l: LinhaEstoque) => l.sugestaoCompra },
+  situacao: { rotulo: "Situação", num: false, valor: (l: LinhaEstoque) => ORDEM_STATUS[l.status] },
+} as const;
+type Coluna = keyof typeof COLUNAS;
+const ORDEM_STATUS: Record<StatusEstoque, number> = {
+  ruptura_iminente: 0,
+  comprar: 1,
+  ok: 2,
+  excesso: 3,
+  parado: 4,
+  sem_dados: 5,
 };
+
+function ordenar(linhas: LinhaEstoque[], col: Coluna | undefined, dir: "asc" | "desc") {
+  if (!col) return linhas; // padrão: urgência (situação + cobertura)
+  const f = COLUNAS[col].valor as (l: LinhaEstoque) => string | number | null;
+  const sinal = dir === "asc" ? 1 : -1;
+  return [...linhas].sort((a, b) => {
+    const x = f(a);
+    const y = f(b);
+    if (x === null && y === null) return 0;
+    if (x === null) return 1; // vazio sempre no fim
+    if (y === null) return -1;
+    if (typeof x === "string" || typeof y === "string")
+      return String(x).localeCompare(String(y), "pt-BR") * sinal;
+    return (x - y) * sinal;
+  });
+}
+
+function Cabecalho({ c, col, dir }: { c: Coluna; col: Coluna | undefined; dir: "asc" | "desc" }) {
+  const ativa = col === c;
+  const proxima = ativa && dir === "desc" ? "asc" : "desc";
+  return (
+    <th className={COLUNAS[c].num ? "num" : undefined}>
+      <a className={ativa ? "ordenar ativa" : "ordenar"} href={`?o=${c}&d=${proxima}`}>
+        {COLUNAS[c].rotulo}
+        <span className="seta">{ativa ? (dir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </a>
+    </th>
+  );
+}
 
 const n0 = (v: number | null) => (v === null ? "—" : Math.round(v).toLocaleString("pt-BR"));
 const n1 = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -38,17 +89,20 @@ export default async function Estoque({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ msg?: string }>;
+  searchParams: Promise<{ msg?: string; o?: string; d?: string }>;
 }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
   const { id } = await params;
-  const { msg } = await searchParams;
+  const { msg, o, d: dirParam } = await searchParams;
+  const col = o && o in COLUNAS ? (o as Coluna) : undefined;
+  const dir = dirParam === "asc" ? "asc" : "desc";
   if (sessao.papel !== "admin" && sessao.clienteId !== id) notFound();
 
   const d = await carregarEstoque(id);
   if (!d) notFound();
 
+  const linhas = ordenar(d.linhas, col, dir);
   const contagem = d.linhas.reduce<Record<string, number>>((acc, l) => {
     acc[l.status] = (acc[l.status] ?? 0) + 1;
     return acc;
@@ -103,19 +157,13 @@ export default async function Estoque({
         <table className="tabela">
           <thead>
             <tr>
-              <th>Produto (SKU)</th>
-              <th>Local</th>
-              <th className="num">Disponível</th>
-              <th className="num">Venda/dia</th>
-              <th className="num">Vendido 60d</th>
-              <th className="num">Cobertura (dias)</th>
-              <th className="num">Previsão 60d</th>
-              <th className="num">Comprar</th>
-              <th>Situação</th>
+              {(Object.keys(COLUNAS) as Coluna[]).map((c) => (
+                <Cabecalho key={c} c={c} col={col} dir={dir} />
+              ))}
             </tr>
           </thead>
           <tbody>
-            {d.linhas.map((l) => (
+            {linhas.map((l) => (
               <tr key={l.itemId}>
                 <td>
                   <div className="titulo-anuncio">
@@ -142,18 +190,12 @@ export default async function Estoque({
                         )}
                       </span>
                     ))}
-                    {l.diasAtivo !== null
-                      ? ` · ativo há ${n0(l.diasAtivo)} ${l.diasAtivo === 1 ? "dia" : "dias"}`
-                      : ""}
                   </div>
                 </td>
-                <td>
-                  {l.local
-                    .split("+")
-                    .map((x) => LOCAL[x] ?? x)
-                    .join(" + ")}
-                </td>
-                <td className="num">{n0(l.disponivel)}</td>
+                <td className="num">{n0(l.diasAtivo)}</td>
+                <td className="num">{n0(l.unidadesFullMl)}</td>
+                <td className="num">{n0(l.unidadesProprio)}</td>
+                <td className="num forte">{n0(l.disponivel)}</td>
                 <td className="num">{l.diasHistorico > 0 ? n1(l.vendaMediaDiaria) : "—"}</td>
                 <td className="num">{n0(l.vendido60d)}</td>
                 <td className="num">{n0(l.coberturaDias)}</td>

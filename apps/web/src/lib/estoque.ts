@@ -34,6 +34,7 @@ export type LinhaEstoque = ResultadoEstoque & {
   local: string;
   disponivel: number;
   unidadesFullMl: number;
+  unidadesProprio: number;
   vendido60d: number;
   /** Dias desde o cadastro do anúncio no canal. */
   diasAtivo: number | null;
@@ -174,6 +175,7 @@ export async function carregarEstoque(clienteId: string) {
             ? "FULL_ML"
             : "PROPRIO",
         unidadesFullMl: porLocal.get("FULL_ML") ?? 0,
+        unidadesProprio: porLocal.get("PROPRIO") ?? 0,
         disponivel,
         vendido60d: vendasDiarias.reduce((s, v) => s + v, 0),
         diasAtivo,
