@@ -35,7 +35,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Migrações no staging
-        run: pnpm db:migrate
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::Segredo DATABASE_URL_DIRECT vazio ou fora do environment staging"; exit 1; fi
+          set +e
+          pnpm db:migrate > migrar.log 2>&1
+          codigo=$?
+          set -e
+          # Mostra o resultado sem expor senha ou endereço do banco.
+          sed -E 's#postgres(ql)?://[^ "]+#[url-omitida]#g' migrar.log | tail -40
+          if [ $codigo -ne 0 ]; then
+            resumo=$(sed -E 's#postgres(ql)?://[^ "]+#[url-omitida]#g' migrar.log | grep -iE "error|erro|code|refused|password|tenant|timeout|enotfound" | head -5 | tr '\n' ' ')
+            echo "::error::Migração falhou: ${resumo}"
+            exit $codigo
+          fi
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
 
