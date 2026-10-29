@@ -60,6 +60,7 @@ export const NOME_PROMOCAO: Record<string, string> = {
   DEAL: "Campanha tradicional",
   MARKETPLACE_CAMPAIGN: "Campanha do ML (coparticipação)",
   SMART: "Campanha automática (coparticipação)",
+  SMART_LIGHTNING: "Relâmpago automática (coparticipação)",
   PRICE_MATCHING: "Preço competitivo",
   PRICE_DISCOUNT: "Desconto próprio",
   VOLUME: "Desconto por volume",
@@ -70,6 +71,12 @@ export const NOME_PROMOCAO: Record<string, string> = {
   UNHEALTHY_STOCK: "Liquidação de estoque Full",
   SELLER_COUPON_CAMPAIGN: "Cupom do vendedor",
 };
+
+/**
+ * Campanhas "guarda-chuva": o período geral é longo ou vazio e cada oferta tem a
+ * própria data, que aparece dentro da campanha.
+ */
+export const CAMPANHA_CONTINUA = new Set(["LIGHTNING", "SMART_LIGHTNING", "DOD"]);
 
 export const STATUS_ITEM_PROMO: Record<string, { rotulo: string; classe: string }> = {
   candidate: { rotulo: "Pode entrar", classe: "neutro" },

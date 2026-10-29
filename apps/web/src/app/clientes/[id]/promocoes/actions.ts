@@ -4,6 +4,7 @@ import {
   criarDescontoProprio,
   entrarNaPromocao,
   mensagemDoErro,
+  removerDescontoProprio,
   sairDaPromocao,
 } from "@banah/connector-ml";
 import { lerValorReais } from "@banah/core";
@@ -59,10 +60,14 @@ function destinoDaCampanha(form: FormData) {
   const promoId = String(form.get("promoId") ?? "");
   const tipo = String(form.get("tipo") ?? "");
   const nome = String(form.get("nome") ?? "");
+  const voltar = String(form.get("voltar") ?? "");
   return {
     clienteId,
     promo: { id: promoId, type: tipo },
-    destino: `/clientes/${clienteId}/promocoes/${encodeURIComponent(promoId)}?tipo=${tipo}&nome=${encodeURIComponent(nome)}`,
+    destino:
+      voltar === "lista"
+        ? `/clientes/${clienteId}/promocoes`
+        : `/clientes/${clienteId}/promocoes/${encodeURIComponent(promoId)}?tipo=${tipo}&nome=${encodeURIComponent(nome)}`,
     nomeCampanha: nome || NOME_PROMOCAO[tipo] || tipo,
   };
 }
@@ -102,6 +107,20 @@ export async function sairPromocao(form: FormData) {
   const { clienteId, promo, destino, nomeCampanha } = destinoDaCampanha(form);
   const itemId = String(form.get("itemId") ?? "");
   const offerId = String(form.get("offerId") ?? "") || null;
+  if (promo.type === "PRICE_DISCOUNT") {
+    return executar(
+      {
+        clienteId,
+        autor: sessao.email,
+        tipo: "ml.promocao.sair",
+        alvo: itemId,
+        descricao: "removeu o desconto próprio",
+        destino,
+      },
+      { promocao: promo },
+      (token) => removerDescontoProprio(token, itemId),
+    );
+  }
   return executar(
     {
       clienteId,

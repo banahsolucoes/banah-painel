@@ -226,8 +226,11 @@ export default async function Campanha({
                   </td>
                   <td>
                     <span className={`selo ${st.classe}`}>{st.rotulo}</span>
-                    {it.end_date && (
-                      <div className="suave pequeno">até {dataHora(it.end_date)}</div>
+                    {(it.start_date || it.end_date) && (
+                      <div className="suave pequeno">
+                        {it.start_date ? `${dataHora(it.start_date)} ` : ""}até{" "}
+                        {dataHora(it.end_date)}
+                      </div>
                     )}
                   </td>
                   <td className="num">{reais(cheio)}</td>

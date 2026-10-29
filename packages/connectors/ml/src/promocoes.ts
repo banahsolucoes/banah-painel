@@ -36,6 +36,7 @@ export type MlPromocaoItem = {
 /** Tipos em que o vendedor só aceita a oferta que o ML montou (manda o offer_id). */
 const POR_OFERTA = new Set([
   "SMART",
+  "SMART_LIGHTNING",
   "PRICE_MATCHING",
   "MARKETPLACE_CAMPAIGN",
   "UNHEALTHY_STOCK",
@@ -62,26 +63,55 @@ export async function listarPromocoes(token: string, sellerId: string) {
   return todas;
 }
 
-/** Itens da campanha (candidatos, pendentes e participando), página por cursor. */
-export async function itensDaPromocao(token: string, promo: { id: string; type: string }) {
-  const itens: MlPromocaoItem[] = [];
-  let cursor: string | undefined;
-  for (let pagina = 0; pagina < 40; pagina++) {
-    const params: Record<string, string | number> = {
-      ...V2,
-      promotion_type: promo.type,
-      limit: 50,
-    };
-    if (cursor) params.search_after = cursor;
-    const r = await mlGet<{
-      results: MlPromocaoItem[];
-      paging?: { searchAfter?: string; search_after?: string; total?: number };
-    }>(token, `/seller-promotions/promotions/${promo.id}/items`, params);
-    itens.push(...r.results);
-    cursor = r.paging?.searchAfter ?? r.paging?.search_after;
-    if (!cursor || r.results.length === 0) break;
+/**
+ * Itens da campanha. Sem filtro a API pode devolver só os candidatos, então busca
+ * cada situação separada (participando, agendado, candidato) e junta sem repetir.
+ */
+export async function itensDaPromocao(
+  token: string,
+  promo: { id: string; type: string },
+  situacoes: string[] = ["started", "pending", "candidate"],
+) {
+  const vistos = new Map<string, MlPromocaoItem>();
+  for (const status of situacoes) {
+    let cursor: string | undefined;
+    for (let pagina = 0; pagina < 40; pagina++) {
+      const params: Record<string, string | number> = {
+        ...V2,
+        promotion_type: promo.type,
+        status,
+        limit: 50,
+      };
+      if (cursor) params.search_after = cursor;
+      const r = await mlGet<{
+        results: MlPromocaoItem[];
+        paging?: { searchAfter?: string; search_after?: string };
+      }>(token, `/seller-promotions/promotions/${promo.id}/items`, params);
+      for (const it of r.results)
+        if (!vistos.has(it.id)) vistos.set(it.id, { ...it, status: it.status ?? status });
+      cursor = r.paging?.searchAfter ?? r.paging?.search_after;
+      if (!cursor || r.results.length === 0) break;
+    }
   }
-  return itens;
+  return [...vistos.values()];
+}
+
+export type MlPromocaoDoItem = MlPromocao & {
+  price?: number | null;
+  original_price?: number | null;
+  offers?: {
+    id?: string;
+    original_price?: number;
+    new_price?: number;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+  }[];
+};
+
+/** Todas as promoções de um anúncio (inclui o desconto próprio). */
+export function promocoesDoItem(token: string, itemId: string) {
+  return mlGet<MlPromocaoDoItem[]>(token, `/seller-promotions/items/${itemId}`, V2);
 }
 
 /** Entra na campanha. Para tipos com preço, `precoReais` é o preço promocional. */
