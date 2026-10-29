@@ -50,6 +50,13 @@
       "when": 1793314670403,
       "tag": "0006_yielding_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793315260200,
+      "tag": "0007_conscious_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

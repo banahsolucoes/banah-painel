@@ -465,3 +465,20 @@ textarea {
 .confirmo input {
   min-width: 0;
 }
+.selo.classico {
+  color: var(--suave);
+}
+.selo.premium {
+  color: var(--tom-reputacao);
+}
+.destaque-recebe {
+  color: var(--tom-vendas);
+}
+.positivo {
+  color: var(--ok);
+  font-weight: 600;
+}
+.negativo {
+  color: var(--erro);
+  font-weight: 700;
+}

@@ -17,15 +17,18 @@ import {
   buscarAnunciante,
   buscarAnuncios,
   buscarEstoqueProduto,
+  buscarFreteGratis,
   buscarMetricasAds,
   buscarPedidos,
   buscarPrecoVenda,
   buscarReputacao,
+  buscarTarifa,
   custoFreteVendedor,
   listarIdsAnuncios,
   localDoTipoEstoque,
   type MlItem,
   type MlPrecoVenda,
+  type MlTarifa,
   produtosDoItem,
   skuDoItem,
 } from "./api";
@@ -81,17 +84,65 @@ export async function estoquePorLocal(
  * Preço de venda (com promoção) e preço cheio dos anúncios ativos, 5 chamadas por vez.
  * Anúncio que não responder fica de fora e usa o preço do próprio item.
  */
-async function precosDeVenda(token: string, itens: MlItem[]) {
-  const mapa = new Map<string, MlPrecoVenda>();
+/** 4xx que não seja 429 = dado indisponível para este anúncio; o resto derruba a coleta. */
+async function talvez<T>(f: () => Promise<T>): Promise<T | null> {
+  try {
+    return await f();
+  } catch (e) {
+    if (!(e instanceof MlErro) || e.status === 429 || e.status >= 500) throw e;
+    return null;
+  }
+}
+
+type Comercial = {
+  venda: MlPrecoVenda | null;
+  tarifaCentavos: number | null;
+  tarifaPct: number | null;
+  freteCentavos: number | null;
+};
+
+/**
+ * Para cada anúncio ativo: preço de venda (com promoção), tarifa oficial do ML nesse
+ * preço e custo do frete grátis. 5 anúncios por vez; tarifa com cache por
+ * preço+tipo+categoria (anúncios iguais não repetem a chamada).
+ */
+async function dadosComerciais(token: string, sellerId: string, itens: MlItem[]) {
+  const mapa = new Map<string, Comercial>();
+  const cacheTarifa = new Map<string, Promise<MlTarifa | null>>();
   const ativos = itens.filter((it) => it.status === "active");
   for (let i = 0; i < ativos.length; i += 5) {
     await Promise.all(
       ativos.slice(i, i + 5).map(async (it) => {
-        try {
-          mapa.set(it.id, await buscarPrecoVenda(token, it.id));
-        } catch (e) {
-          if (!(e instanceof MlErro) || e.status === 429 || e.status >= 500) throw e;
+        const venda = await talvez(() => buscarPrecoVenda(token, it.id));
+        const preco = venda?.amount ?? it.price;
+        let tarifa: MlTarifa | null = null;
+        if (it.listing_type_id && it.category_id) {
+          const chave = `${preco}|${it.listing_type_id}|${it.category_id}|${it.shipping?.logistic_type ?? ""}`;
+          if (!cacheTarifa.has(chave)) {
+            cacheTarifa.set(
+              chave,
+              talvez(() =>
+                buscarTarifa(token, {
+                  preco,
+                  tipo: it.listing_type_id as string,
+                  categoria: it.category_id as string,
+                  logistica: it.shipping?.logistic_type,
+                }),
+              ),
+            );
+          }
+          tarifa = await (cacheTarifa.get(chave) as Promise<MlTarifa | null>);
         }
+        const frete = it.shipping?.free_shipping
+          ? await talvez(() => buscarFreteGratis(token, sellerId, it.id))
+          : 0;
+        mapa.set(it.id, {
+          venda,
+          tarifaCentavos:
+            tarifa?.sale_fee_amount !== undefined ? deReais(tarifa.sale_fee_amount) : null,
+          tarifaPct: tarifa?.sale_fee_details?.percentage_fee ?? null,
+          freteCentavos: frete === null ? null : deReais(frete),
+        });
       }),
     );
   }
@@ -158,7 +209,10 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
       Awaited<ReturnType<typeof buscarEstoqueProduto>> | null
     >();
 
-    const precos = await precosDeVenda(token, itens);
+    const comercial = await dadosComerciais(token, conta.sellerId, itens);
+    const precos = new Map(
+      [...comercial].flatMap(([id, c]) => (c.venda ? [[id, c.venda] as const] : [])),
+    );
 
     for (let i = 0; i < itens.length; i += 100) {
       const lote = itens.slice(i, i + 100);
@@ -178,6 +232,12 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
             promocaoTipo: precos.get(it.id)?.regular_amount
               ? (precos.get(it.id)?.metadata?.promotion_type ?? "PROMOCAO")
               : null,
+            tipoAnuncio: it.listing_type_id ?? null,
+            categoriaId: it.category_id ?? null,
+            freteGratis: it.shipping?.free_shipping ?? null,
+            tarifaCentavos: comercial.get(it.id)?.tarifaCentavos ?? null,
+            tarifaPct: comercial.get(it.id)?.tarifaPct ?? null,
+            freteCustoCentavos: comercial.get(it.id)?.freteCentavos ?? null,
             status: it.status,
             logistica: it.shipping?.logistic_type ?? null,
             catalogo: Boolean(it.catalog_listing),
@@ -195,6 +255,12 @@ export function coletarAnuncios(db: Db, conta: Conta, token: string) {
             precoCentavos: excluido("preco_centavos"),
             precoCheioCentavos: excluido("preco_cheio_centavos"),
             promocaoTipo: excluido("promocao_tipo"),
+            tipoAnuncio: excluido("tipo_anuncio"),
+            categoriaId: excluido("categoria_id"),
+            freteGratis: excluido("frete_gratis"),
+            tarifaCentavos: excluido("tarifa_centavos"),
+            tarifaPct: excluido("tarifa_pct"),
+            freteCustoCentavos: excluido("frete_custo_centavos"),
             status: excluido("status"),
             logistica: excluido("logistica"),
             catalogo: excluido("catalogo"),

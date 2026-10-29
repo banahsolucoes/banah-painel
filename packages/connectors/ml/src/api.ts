@@ -20,7 +20,10 @@ export type MlItem = {
   date_created?: string;
   seller_custom_field?: string | null;
   attributes?: { id: string; value_name?: string | null }[];
-  shipping?: { logistic_type?: string | null };
+  shipping?: { logistic_type?: string | null; free_shipping?: boolean | null };
+  /** gold_special = Clássico, gold_pro = Premium. */
+  listing_type_id?: string | null;
+  category_id?: string | null;
   /** Produto do vendedor: o estoque real (por depósito) fica nele, não no anúncio. */
   user_product_id?: string | null;
   variations?: { id: number; available_quantity?: number; user_product_id?: string | null }[];
@@ -128,6 +131,36 @@ export function buscarPrecoVenda(token: string, itemId: string) {
   return mlGet<MlPrecoVenda>(token, `/items/${itemId}/sale_price`, {
     context: "channel_marketplace",
   });
+}
+
+export type MlTarifa = {
+  sale_fee_amount?: number;
+  sale_fee_details?: { percentage_fee?: number; fixed_fee?: number } | null;
+};
+
+/** Tarifa de venda oficial do ML para um preço, tipo de anúncio e categoria. */
+export async function buscarTarifa(
+  token: string,
+  p: { preco: number; tipo: string; categoria: string; logistica?: string | null },
+) {
+  const params: Record<string, string | number> = {
+    price: p.preco,
+    listing_type_id: p.tipo,
+    category_id: p.categoria,
+    currency_id: "BRL",
+  };
+  if (p.logistica) params.logistic_type = p.logistica;
+  const r = await mlGet<MlTarifa | MlTarifa[]>(token, "/sites/MLB/listing_prices", params);
+  return Array.isArray(r) ? (r[0] ?? {}) : r;
+}
+
+/** Quanto o vendedor paga pelo frete grátis deste anúncio (custo de tabela). */
+export async function buscarFreteGratis(token: string, sellerId: string, itemId: string) {
+  const r = await mlGet<{
+    list_cost?: number;
+    coverage?: { all_country?: { list_cost?: number } };
+  }>(token, `/users/${sellerId}/shipping_options/free`, { item_id: itemId });
+  return r.coverage?.all_country?.list_cost ?? r.list_cost ?? null;
 }
 
 export function skuDoItem(item: MlItem): string | null {

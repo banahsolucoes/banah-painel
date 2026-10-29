@@ -195,6 +195,15 @@ export const anuncios = pgTable(
     precoCheioCentavos: integer("preco_cheio_centavos"),
     /** Tipo da promoção ativa (DEAL, PRICE_DISCOUNT, SMART...), null sem promoção. */
     promocaoTipo: text("promocao_tipo"),
+    /** gold_special = Clássico, gold_pro = Premium. */
+    tipoAnuncio: text("tipo_anuncio"),
+    categoriaId: text("categoria_id"),
+    freteGratis: boolean("frete_gratis"),
+    /** Tarifa de venda do ML no preço que o comprador paga hoje (tabela oficial). */
+    tarifaCentavos: integer("tarifa_centavos"),
+    tarifaPct: doublePrecision("tarifa_pct"),
+    /** Quanto o vendedor paga de frete por envio (0 quando o comprador paga o frete). */
+    freteCustoCentavos: integer("frete_custo_centavos"),
     status: text("status").notNull(),
     /** fulfillment = Full; cross_docking, xd_drop_off, self_service (Flex) etc. */
     logistica: text("logistica"),

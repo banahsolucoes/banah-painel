@@ -1,3 +1,4 @@
+import { calcularRecebimento, nomeTipoAnuncio } from "@banah/core";
 import { acoes, anuncios, clientes, db, produtosCusto } from "@banah/db";
 import { type Centavos, diaLocal, formatarReais, somarDias } from "@banah/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -6,6 +7,7 @@ import { BotaoEnviar } from "@/app/botao-enviar";
 import { Navegacao } from "@/app/clientes/[id]/navegacao";
 import { sessaoAtual } from "@/lib/sessao";
 import { curto } from "@/lib/texto";
+import { impostoDoCliente } from "@/lib/vendas";
 import { salvarPreco } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +71,8 @@ export default async function Precos({
   `)) as unknown as { item_id: string; tarifa_pct: number | null; unidades: number }[];
   const tarifaPorItem = new Map(tarifas.map((t) => [t.item_id, t]));
 
+  const impostoPct = impostoDoCliente(cliente.config);
+
   const historico = await db()
     .select()
     .from(acoes)
@@ -83,8 +87,10 @@ export default async function Precos({
       <p className="suave">
         <strong>Preço cheio</strong> é o preço do anúncio sem promoção; é ele que se altera aqui.{" "}
         <strong>Comprador paga</strong> é o valor com a promoção ativa (no ML o cheio aparece
-        riscado). Antes de aplicar, o painel confere o preço no ML. Mudança de 30% para baixo ou
-        100% para cima pede confirmação. Custo / preço usa o valor que o comprador paga.
+        riscado). <strong>Você recebe</strong> = comprador paga − tarifa do ML − frete que você paga
+        (tabela oficial do ML). <strong>Margem</strong> = você recebe − custo − imposto. Antes de
+        aplicar, o painel confere o preço no ML. Mudança de 30% para baixo ou 100% para cima pede
+        confirmação.
       </p>
 
       {msg && <div className="aviso">{msg}</div>}
@@ -102,18 +108,21 @@ export default async function Precos({
           <thead>
             <tr>
               <th>Produto (SKU)</th>
+              <th>Tipo</th>
               <th className="num">Preço cheio</th>
               <th className="num">Comprador paga</th>
+              <th className="num">Tarifa ML</th>
+              <th className="num">Frete</th>
+              <th className="num">Você recebe</th>
               <th className="num">Custo</th>
-              <th className="num">Custo / preço</th>
-              <th className="num">Tarifa ML (30d)</th>
+              <th className="num">Margem</th>
               <th>Novo preço</th>
             </tr>
           </thead>
           <tbody>
             {lista.length === 0 && (
               <tr>
-                <td colSpan={7} className="suave">
+                <td colSpan={11} className="suave">
                   Nenhum anúncio ativo encontrado.
                 </td>
               </tr>
@@ -124,6 +133,18 @@ export default async function Precos({
               const pedeConfirmacao = confirmar === a.itemId;
               const cheio = a.precoCheioCentavos ?? a.precoCentavos;
               const emPromo = a.precoCentavos < cheio;
+              // Tarifa oficial no preço de hoje; sem ela, a média real das vendas de 30 dias.
+              const tarifa =
+                a.tarifaCentavos ??
+                (t?.tarifa_pct != null ? Math.round((a.precoCentavos * t.tarifa_pct) / 100) : null);
+              const frete = a.freteGratis === false ? 0 : a.freteCustoCentavos;
+              const r = calcularRecebimento({
+                precoVendaCentavos: a.precoCentavos,
+                tarifaCentavos: tarifa,
+                freteCentavos: frete,
+                custoCentavos: custo,
+                impostoPct,
+              });
               return (
                 <tr key={a.itemId}>
                   <td>
@@ -139,8 +160,21 @@ export default async function Precos({
                     <div className="suave pequeno">
                       {a.sku ? `SKU ${a.sku} · ` : ""}
                       {a.itemId}
-                      {a.catalogo ? " · catálogo" : ""}
-                      {a.logistica === "fulfillment" ? " · Full" : ""}
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      className={`selo ${a.tipoAnuncio === "gold_pro" ? "premium" : "classico"}`}
+                    >
+                      {nomeTipoAnuncio(a.tipoAnuncio)}
+                    </span>
+                    <div className="suave pequeno">
+                      {[
+                        a.catalogo ? "catálogo" : null,
+                        a.logistica === "fulfillment" ? "Full" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
                   </td>
                   <td className="num forte">{reais(cheio)}</td>
@@ -156,13 +190,33 @@ export default async function Precos({
                       <span className="suave">mesmo</span>
                     )}
                   </td>
+                  <td className="num">
+                    {reais(tarifa)}
+                    {tarifa !== null && a.precoCentavos > 0 && (
+                      <div className="suave pequeno">{pct((tarifa / a.precoCentavos) * 100)}</div>
+                    )}
+                  </td>
+                  <td className="num">
+                    {a.freteGratis === false ? (
+                      <span className="suave">comprador</span>
+                    ) : (
+                      reais(frete)
+                    )}
+                  </td>
+                  <td className="num forte destaque-recebe">{reais(r.recebeCentavos)}</td>
                   <td className="num">{reais(custo)}</td>
                   <td className="num">
-                    {custo !== null && a.precoCentavos > 0
-                      ? pct((custo / a.precoCentavos) * 100)
-                      : "—"}
+                    {r.margemCentavos === null ? (
+                      <span className="suave pequeno">
+                        {custo === null ? "sem custo" : impostoPct === null ? "sem imposto" : "—"}
+                      </span>
+                    ) : (
+                      <span className={r.margemCentavos < 0 ? "negativo" : "positivo"}>
+                        {reais(r.margemCentavos)}
+                        <div className="pequeno">{pct(r.margemPct)}</div>
+                      </span>
+                    )}
                   </td>
-                  <td className="num">{t ? pct(t.tarifa_pct) : "—"}</td>
                   <td>
                     <form action={salvarPreco} className="form-preco">
                       <input type="hidden" name="clienteId" value={id} />

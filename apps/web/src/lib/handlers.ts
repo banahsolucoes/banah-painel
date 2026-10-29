@@ -165,7 +165,7 @@ export async function agendarConta(conta: typeof contasCanal.$inferSelect) {
   await enfileirar(db(), {
     ...base,
     tipo: "ml.anuncios",
-    chaveUnica: `ml.anuncios:${conta.id}:${bloco}:precos3`, // sufixo força a coleta com o estoque por depósito
+    chaveUnica: `ml.anuncios:${conta.id}:${bloco}:precos4`, // sufixo força a coleta com o estoque por depósito
     payload,
   });
   await enfileirar(db(), {
