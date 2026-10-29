@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate"
+    "migrate": "node migrar.mjs"
   },
   "dependencies": {
     "@banah/shared": "workspace:*",
