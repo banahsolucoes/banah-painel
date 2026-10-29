@@ -1,0 +1,65 @@
+name: Release produção
+
+# Criar a tag vX.Y.Z no GitHub = backup + migrações no banah-prod + publicação.
+# Rollback de código: no Vercel, "Promote" na versão anterior (segundos, sem build).
+on:
+  push:
+    tags: ["v*.*.*"]
+
+concurrency:
+  group: release-producao
+  cancel-in-progress: false
+
+jobs:
+  producao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verificação completa antes de publicar
+        run: pnpm lint && pnpm typecheck && pnpm test
+
+      - name: Backup do banco de produção (cifrado)
+        run: |
+          sudo apt-get install -y -qq postgresql-client-16 >/dev/null
+          pg_dump "${{ secrets.DATABASE_URL_DIRECT }}" --no-owner --format=custom \
+            | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_SENHA \
+            > "backup-${GITHUB_REF_NAME}.dump.enc"
+        env:
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.ref_name }}
+          path: backup-*.dump.enc
+          retention-days: 30
+
+      - name: Migrações na produção
+        run: pnpm db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+
+      - name: Publicar no Vercel (produção)
+        run: |
+          npx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Conferir saúde
+        run: |
+          sleep 10
+          curl -fsS "${{ vars.APP_URL }}/api/health" || (echo "::error::Health falhou na produção. Avalie Promote da versão anterior no Vercel." && exit 1)
+
+      - name: Notas da release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

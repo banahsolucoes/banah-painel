@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.turbo/
+.vercel/
+*.log
+.DS_Store
+
+# segredos — nunca no Git
+.env
+.env.*
+!.env.example
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+*.tsbuildinfo

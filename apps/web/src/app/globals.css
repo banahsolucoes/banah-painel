@@ -1,0 +1,126 @@
+:root {
+  --fundo: #f6f7f9;
+  --cartao: #ffffff;
+  --texto: #14181f;
+  --suave: #5b6472;
+  --borda: #dfe3e8;
+  --marca: #0150af;
+  --ok: #1a7f4b;
+  --alerta: #b54708;
+  --erro: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #0f1217;
+    --cartao: #171b22;
+    --texto: #eef1f5;
+    --suave: #9aa4b2;
+    --borda: #2a313c;
+    --marca: #5b9bf0;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font:
+    17px / 1.5 system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+h1 {
+  font-size: 28px;
+  margin: 0 0 4px;
+}
+h2 {
+  font-size: 20px;
+  margin: 32px 0 12px;
+}
+p.suave,
+.suave {
+  color: var(--suave);
+}
+
+.cartao {
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.linha {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.botao,
+button {
+  background: var(--marca);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.botao.secundario {
+  background: transparent;
+  color: var(--marca);
+  border: 1px solid var(--marca);
+}
+
+input {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--cartao);
+  color: var(--texto);
+  min-width: 260px;
+}
+
+.selo {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.selo.ok {
+  color: var(--ok);
+}
+.selo.erro {
+  color: var(--erro);
+}
+.selo.alerta {
+  color: var(--alerta);
+}
+
+.aviso {
+  background: var(--cartao);
+  border-left: 4px solid var(--marca);
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
