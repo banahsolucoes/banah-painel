@@ -3,7 +3,8 @@ import { appEnv } from "@banah/shared";
 import { asc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { sessaoAtual } from "@/lib/sessao";
-import { criarCliente, sair } from "./actions";
+import { criarCliente, excluirCliente, sair } from "./actions";
+import { BotaoEnviar } from "./botao-enviar";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,10 @@ export default async function Inicio({
     );
   }
 
-  const lista = await db().select().from(clientes).orderBy(asc(clientes.nome));
+  const lista = await db()
+    .select()
+    .from(clientes)
+    .orderBy(asc(clientes.nome), asc(clientes.criadoEm));
   const contas = await db().select().from(contasCanal);
 
   return (
@@ -45,15 +49,21 @@ export default async function Inicio({
           </p>
         </div>
         <form action={sair}>
-          <button type="submit" className="botao secundario">
+          <BotaoEnviar secundario enviando="Saindo…">
             Sair
-          </button>
+          </BotaoEnviar>
         </form>
       </div>
 
       {msg && <div className="aviso">{msg}</div>}
 
-      <h2>Clientes</h2>
+      <h2>Novo cliente</h2>
+      <form action={criarCliente} className="linha" style={{ justifyContent: "flex-start" }}>
+        <input name="nome" placeholder="Nome da empresa" required minLength={2} />
+        <BotaoEnviar>Cadastrar</BotaoEnviar>
+      </form>
+
+      <h2>Clientes ({lista.length})</h2>
       {lista.length === 0 && <p className="suave">Nenhum cliente cadastrado ainda.</p>}
       {lista.map((c) => {
         const doCliente = contas.filter((k) => k.clienteId === c.id);
@@ -61,9 +71,23 @@ export default async function Inicio({
           <div className="cartao" key={c.id}>
             <div className="linha">
               <strong>{c.nome}</strong>
-              <a className="botao" href={`/api/auth/ml/start?cliente=${c.id}`}>
-                Conectar Mercado Livre
-              </a>
+              <div className="linha">
+                {doCliente.length === 0 && (
+                  <form action={excluirCliente}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <BotaoEnviar
+                      secundario
+                      enviando="Excluindo…"
+                      confirmar={`Excluir o cliente ${c.nome}?`}
+                    >
+                      Excluir
+                    </BotaoEnviar>
+                  </form>
+                )}
+                <a className="botao" href={`/api/auth/ml/start?cliente=${c.id}`}>
+                  Conectar Mercado Livre
+                </a>
+              </div>
             </div>
             {doCliente.map((k) => (
               <p key={k.id} className="linha">
@@ -81,12 +105,6 @@ export default async function Inicio({
           </div>
         );
       })}
-
-      <h2>Novo cliente</h2>
-      <form action={criarCliente} className="linha" style={{ justifyContent: "flex-start" }}>
-        <input name="nome" placeholder="Nome da empresa" required minLength={2} />
-        <button type="submit">Cadastrar</button>
-      </form>
     </main>
   );
 }
