@@ -1,40 +1,46 @@
 :root {
-  /* Marca BANAH (petróleo). Provisório até confirmar os hex do site. */
-  --marca: #0b5563;
-  --marca-suave: #e3f0f2;
-  --fundo: #f4f6f7;
+  /* Paleta do site banahdigital.com.br */
+  --marca: #0a5a68; /* petróleo profundo */
+  --marca-clara: #0e7c8f;
+  --destaque: #45b8c4;
+  --acao: #f2c230; /* amarelo dos botões */
+  --acao-hover: #d9ac22;
+  --acao-texto: #3d2e00;
+  --marca-suave: #dceff1;
+  --fundo: #fbf7ef;
   --cartao: #ffffff;
-  --texto: #142126;
-  --suave: #5a6b71;
-  --borda: #dbe3e5;
-  --ok: #15803d;
-  --alerta: #b45309;
-  --erro: #b91c1c;
+  --texto: #0a3f49;
+  --suave: #4f7279;
+  --borda: #d7e7ea;
+  --ok: #1f7a4a;
+  --alerta: #a86a00;
+  --erro: #b42318;
   /* Um tom por assunto, para bater o olho e saber o que é. */
-  --tom-vendas: #0e7490;
-  --tom-resultado: #15803d;
-  --tom-ads: #c2410c;
-  --tom-reputacao: #7c3aed;
-  --tom-estoque: #1d4ed8;
+  --tom-vendas: #0e7c8f;
+  --tom-resultado: #1f7a4a;
+  --tom-ads: #c98a0b;
+  --tom-reputacao: #6d4bb0;
+  --tom-estoque: #2563a8;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --marca: #3fa7b8;
-    --marca-suave: #12303a;
-    --fundo: #0c1417;
-    --cartao: #131e22;
-    --texto: #e8f0f2;
-    --suave: #93a6ac;
-    --borda: #24363c;
-    --ok: #4ade80;
-    --alerta: #fbbf24;
-    --erro: #f87171;
-    --tom-vendas: #22d3ee;
-    --tom-resultado: #4ade80;
-    --tom-ads: #fb923c;
-    --tom-reputacao: #a78bfa;
-    --tom-estoque: #60a5fa;
+    --marca: #45b8c4;
+    --marca-clara: #45b8c4;
+    --marca-suave: #0f3a42;
+    --fundo: #082227;
+    --cartao: #0c2f36;
+    --texto: #fbf7ef;
+    --suave: #9fc3c9;
+    --borda: #174a54;
+    --ok: #5ccf8e;
+    --alerta: #f2c230;
+    --erro: #f38b80;
+    --tom-vendas: #45b8c4;
+    --tom-resultado: #5ccf8e;
+    --tom-ads: #f2c230;
+    --tom-reputacao: #b49cf0;
+    --tom-estoque: #7fb2f0;
   }
 }
 
@@ -47,10 +53,8 @@ body {
   background: var(--fundo);
   color: var(--texto);
   font:
-    14px / 1.5 system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
+    14px / 1.5 var(--font-body, "Manrope"),
+    system-ui,
     sans-serif;
 }
 
@@ -59,13 +63,21 @@ main {
   margin: 0 auto;
   padding: 24px 16px 64px;
 }
+h1,
+h2 {
+  font-family: var(--font-display, "Archivo"), system-ui, sans-serif;
+}
 h1 {
   font-size: 20px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
   margin: 0 0 4px;
   color: var(--marca);
 }
 h2 {
   font-size: 13px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--suave);
@@ -133,8 +145,8 @@ p.suave,
 
 .botao,
 button {
-  background: var(--marca);
-  color: #fff;
+  background: var(--acao);
+  color: var(--acao-texto);
   border: 0;
   border-radius: 7px;
   padding: 7px 14px;
@@ -143,6 +155,10 @@ button {
   cursor: pointer;
   text-decoration: none;
   display: inline-block;
+}
+.botao:hover,
+button:hover {
+  background: var(--acao-hover);
 }
 .botao.secundario {
   background: transparent;
@@ -298,7 +314,7 @@ label input {
 .aba.ativa {
   background: var(--marca);
   border-color: var(--marca);
-  color: #fff;
+  color: var(--fundo);
 }
 .indicadores {
   display: grid;
@@ -346,4 +362,7 @@ textarea {
 }
 .secao .resumo-item.cartao {
   border-top: 3px solid var(--acento);
+}
+.botao.secundario:hover {
+  background: var(--marca-suave);
 }
