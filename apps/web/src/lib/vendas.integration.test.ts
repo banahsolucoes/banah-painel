@@ -39,15 +39,20 @@ describe.skipIf(!temBanco)("dashboard de vendas", () => {
       })
       .returning();
     const contaId = k?.id ?? "";
-    await db().insert(anuncios).values({
-      clienteId,
-      contaId,
-      itemId: "MLB1",
-      titulo: "Barra",
-      sku: "S1",
-      precoCentavos: 5000,
-      status: "active",
-    });
+    // Dois anúncios do mesmo SKU: no ranking viram uma linha só.
+    await db()
+      .insert(anuncios)
+      .values(
+        ["MLB1", "MLB2"].map((itemId) => ({
+          clienteId,
+          contaId,
+          itemId,
+          titulo: "Barra",
+          sku: "S1",
+          precoCentavos: 5000,
+          status: "active",
+        })),
+      );
     await db().insert(produtosCusto).values({ clienteId, sku: "S1", custoCentavos: 2000 });
     // Dois pedidos do mesmo carrinho (mesmo envio) + um cancelado.
     const pedido = (orderId: string, status: string, ship: string | null) => ({
@@ -75,7 +80,7 @@ describe.skipIf(!temBanco)("dashboard de vendas", () => {
         ["1", "2", "3"].map((o) => ({
           clienteId,
           orderId: o,
-          itemId: "MLB1",
+          itemId: o === "2" ? "MLB2" : "MLB1",
           quantidade: 2,
           precoUnitCentavos: 5000,
         })),
@@ -115,6 +120,9 @@ describe.skipIf(!temBanco)("dashboard de vendas", () => {
     expect(a?.cpcCentavos).toBe(20);
     expect(d?.reputacao?.nivel).toBe("5_green");
     expect(d?.serie).toHaveLength(30);
-    expect(d?.top[0]?.item_id).toBe("MLB1");
+    expect(d?.top).toHaveLength(1);
+    expect(d?.top[0]?.sku).toBe("S1");
+    expect(d?.top[0]?.itens).toEqual(["MLB1", "MLB2"]);
+    expect(d?.top[0]?.unidades).toBe(4);
   });
 });

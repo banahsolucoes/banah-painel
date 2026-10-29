@@ -26,6 +26,8 @@ export function configEstoque(config: unknown): ConfigEstoque {
 
 export type LinhaEstoque = ResultadoEstoque & {
   itemId: string;
+  /** Todos os anúncios ativos do mesmo SKU. */
+  itens: { itemId: string; permalink: string | null }[];
   titulo: string;
   sku: string | null;
   statusAnuncio: string;
@@ -110,21 +112,49 @@ export async function carregarEstoque(clienteId: string) {
   }
   const estoquePorItem = new Map(estoque.map((e) => [e.item_id, e]));
 
-  const linhas: LinhaEstoque[] = lista
+  // Um SKU pode ter vários anúncios (clássico, premium, catálogo): tudo vira uma linha só.
+  // Anúncio sem SKU fica sozinho, pelo próprio código.
+  const grupos = new Map<string, (typeof lista)[number][]>();
+  for (const a of lista) {
     // Só anúncios ativos: pausado ou fechado não entra na análise de reposição.
-    .filter((a) => a.status === "active")
-    .map((a) => {
-      // Histórico possível: limitado pela carga inicial e pela idade do anúncio.
-      let dias = cargaCompleta ? 60 : 0;
-      if (a.canalCriadoEm)
-        dias = Math.min(dias, Math.max(0, diasEntre(diaLocal(a.canalCriadoEm), hoje)));
-      const m = vendasPorItem.get(a.itemId);
-      const vendasDiarias = Array.from(
-        { length: dias },
-        (_, i) => m?.get(somarDias(hoje, i - dias)) ?? 0,
-      );
-      const e = estoquePorItem.get(a.itemId);
-      const disponivel = e?.disponivel ?? 0;
+    if (a.status !== "active") continue;
+    const chave = a.sku?.trim() || a.itemId;
+    grupos.set(chave, [...(grupos.get(chave) ?? []), a]);
+  }
+
+  const linhas: LinhaEstoque[] = [...grupos.values()]
+    .map((grupo) => {
+      // Histórico possível: limitado pela carga inicial e pelo anúncio mais antigo do SKU.
+      const criados = grupo
+        .map((a) => a.canalCriadoEm)
+        .filter((d): d is Date => d !== null)
+        .map((d) => diasEntre(diaLocal(d), hoje));
+      const diasAtivo = criados.length ? Math.max(...criados) : null;
+      const dias = cargaCompleta ? Math.min(60, Math.max(0, diasAtivo ?? 60)) : 0;
+
+      // Venda do SKU = soma das vendas de todos os anúncios dele, dia a dia.
+      const vendasDiarias = Array.from({ length: dias }, (_, i) => {
+        const dia = somarDias(hoje, i - dias);
+        return grupo.reduce((t, a) => t + (vendasPorItem.get(a.itemId)?.get(dia) ?? 0), 0);
+      });
+
+      // Estoque do SKU: os anúncios do mesmo SKU dividem o mesmo estoque físico (o ML/ERP
+      // repete o número em cada um), então por local vale o maior, não a soma.
+      const porLocal = new Map<string, number>();
+      for (const a of grupo) {
+        const e = estoquePorItem.get(a.itemId);
+        if (!e) continue;
+        for (const local of e.locais) {
+          const qtd = local === "FULL_ML" ? e.full_ml : e.disponivel - e.full_ml;
+          porLocal.set(local, Math.max(porLocal.get(local) ?? 0, qtd));
+        }
+      }
+      const disponivel = [...porLocal.values()].reduce((t, v) => t + v, 0);
+      const principal = [...grupo].sort(
+        (x, y) =>
+          (vendasPorItem.get(y.itemId)?.size ?? 0) - (vendasPorItem.get(x.itemId)?.size ?? 0),
+      )[0] as (typeof grupo)[number];
+
       const r = analisarEstoque({
         vendasDiarias,
         disponivel,
@@ -133,16 +163,21 @@ export async function carregarEstoque(clienteId: string) {
       });
       return {
         ...r,
-        itemId: a.itemId,
-        titulo: a.titulo,
-        sku: a.sku,
-        statusAnuncio: a.status,
-        local: e?.locais.join("+") ?? (a.logistica === "fulfillment" ? "FULL_ML" : "PROPRIO"),
-        unidadesFullMl: e?.full_ml ?? 0,
+        itemId: principal.itemId,
+        itens: grupo.map((a) => ({ itemId: a.itemId, permalink: a.permalink })),
+        titulo: principal.titulo,
+        sku: principal.sku,
+        statusAnuncio: principal.status,
+        local: porLocal.size
+          ? [...porLocal.keys()].sort().join("+")
+          : principal.logistica === "fulfillment"
+            ? "FULL_ML"
+            : "PROPRIO",
+        unidadesFullMl: porLocal.get("FULL_ML") ?? 0,
         disponivel,
         vendido60d: vendasDiarias.reduce((s, v) => s + v, 0),
-        diasAtivo: a.canalCriadoEm ? diasEntre(diaLocal(a.canalCriadoEm), hoje) : null,
-        permalink: a.permalink,
+        diasAtivo,
+        permalink: principal.permalink,
       };
     })
     .sort(

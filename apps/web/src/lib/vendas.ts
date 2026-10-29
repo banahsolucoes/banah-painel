@@ -159,31 +159,47 @@ export async function carregarVendas(clienteId: string, periodo: Periodo) {
     order by d.dia desc
   `)) as unknown as { dia: string; pedidos: number; fat: string; ads: string }[];
 
+  // Ranking por SKU: os anúncios do mesmo SKU somam numa linha só.
   const top = (await db().execute(sql`
-    with vend as (
-      select pi.item_id, sum(pi.quantidade)::int as unidades,
+    with chave as (
+      select item_id, coalesce(nullif(trim(sku), ''), item_id) as chave, titulo, sku
+      from anuncios where cliente_id = ${clienteId}
+    ),
+    vend as (
+      select coalesce(c.chave, pi.item_id) as chave, sum(pi.quantidade)::int as unidades,
         sum(pi.quantidade * pi.preco_unit_centavos)::bigint as fat
       from pedido_itens pi
       join pedidos p on p.cliente_id = pi.cliente_id and p.order_id = pi.order_id
+      left join chave c on c.item_id = pi.item_id
       where pi.cliente_id = ${clienteId} and p.dia_venda between ${i.de} and ${i.ate}
         and p.status not in ${STATUS_FORA}
       group by 1
     ),
     ad as (
-      select item_id, sum(custo_centavos)::bigint as ads, sum(receita_centavos)::bigint as receita_ads
-      from ads_diario where cliente_id = ${clienteId} and dia between ${i.de} and ${i.ate} group by 1
+      select coalesce(c.chave, d.item_id) as chave, sum(d.custo_centavos)::bigint as ads,
+        sum(d.receita_centavos)::bigint as receita_ads
+      from ads_diario d left join chave c on c.item_id = d.item_id
+      where d.cliente_id = ${clienteId} and d.dia between ${i.de} and ${i.ate}
+      group by 1
+    ),
+    info as (
+      select chave, min(titulo) as titulo, max(sku) as sku,
+        array_agg(item_id order by item_id) as itens
+      from chave group by chave
     )
-    select coalesce(vend.item_id, ad.item_id) as item_id, a.titulo, a.sku,
+    select coalesce(vend.chave, ad.chave) as item_id, info.titulo, info.sku,
+      coalesce(info.itens, array[coalesce(vend.chave, ad.chave)]) as itens,
       coalesce(vend.unidades, 0) as unidades, coalesce(vend.fat, 0)::bigint as fat,
       coalesce(ad.ads, 0)::bigint as ads, coalesce(ad.receita_ads, 0)::bigint as receita_ads
-    from vend full join ad on ad.item_id = vend.item_id
-    left join anuncios a on a.cliente_id = ${clienteId} and a.item_id = coalesce(vend.item_id, ad.item_id)
+    from vend full join ad on ad.chave = vend.chave
+    left join info on info.chave = coalesce(vend.chave, ad.chave)
     order by fat desc, ads desc
     limit 15
   `)) as unknown as {
     item_id: string;
     titulo: string | null;
     sku: string | null;
+    itens: string[];
     unidades: number;
     fat: string;
     ads: string;

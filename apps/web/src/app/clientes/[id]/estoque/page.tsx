@@ -103,7 +103,7 @@ export default async function Estoque({
         <table className="tabela">
           <thead>
             <tr>
-              <th>Anúncio</th>
+              <th>Produto (SKU)</th>
               <th>Local</th>
               <th className="num">Disponível</th>
               <th className="num">Venda/dia</th>
@@ -128,8 +128,20 @@ export default async function Estoque({
                     )}
                   </div>
                   <div className="suave pequeno">
-                    {l.itemId}
-                    {l.sku ? ` · SKU ${l.sku}` : ""}
+                    {l.sku ? `SKU ${l.sku} · ` : ""}
+                    {l.itens.length > 1 ? `${l.itens.length} anúncios: ` : ""}
+                    {l.itens.map((it, i) => (
+                      <span key={it.itemId}>
+                        {i > 0 && ", "}
+                        {it.permalink ? (
+                          <a href={it.permalink} target="_blank" rel="noreferrer">
+                            {it.itemId}
+                          </a>
+                        ) : (
+                          it.itemId
+                        )}
+                      </span>
+                    ))}
                     {l.diasAtivo !== null
                       ? ` · ativo há ${n0(l.diasAtivo)} ${l.diasAtivo === 1 ? "dia" : "dias"}`
                       : ""}

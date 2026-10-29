@@ -239,12 +239,12 @@ export default async function Vendas({
         </div>
       </section>
 
-      <h2>Anúncios do período</h2>
+      <h2>Produtos do período</h2>
       <div className="tabela-rolagem">
         <table className="tabela">
           <thead>
             <tr>
-              <th>Anúncio</th>
+              <th>Produto (SKU)</th>
               <th className="num">Unidades</th>
               <th className="num">Vendido</th>
               <th className="num">Gasto ads</th>
@@ -264,8 +264,9 @@ export default async function Vendas({
                 <td>
                   <div className="titulo-anuncio">{t.titulo ?? t.item_id}</div>
                   <div className="suave pequeno">
-                    {t.item_id}
-                    {t.sku ? ` · SKU ${t.sku}` : ""}
+                    {t.sku ? `SKU ${t.sku} · ` : ""}
+                    {t.itens.length > 1 ? `${t.itens.length} anúncios: ` : ""}
+                    {t.itens.join(", ")}
                   </div>
                 </td>
                 <td className="num">{num(t.unidades)}</td>
