@@ -209,3 +209,70 @@ label input {
 .titulo-anuncio {
   max-width: 420px;
 }
+
+.navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.aba {
+  padding: 6px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--texto);
+  font-size: 14px;
+}
+.aba.ativa {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: #fff;
+}
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.indicador {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.indicador-valor {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.variacao {
+  font-weight: 600;
+}
+.variacao.ok {
+  color: var(--ok);
+}
+.variacao.erro {
+  color: var(--erro);
+}
+.barra {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--marca);
+  min-width: 2px;
+}
+textarea {
+  font:
+    14px / 1.4 ui-monospace,
+    monospace;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--cartao);
+  color: var(--texto);
+  width: 100%;
+}

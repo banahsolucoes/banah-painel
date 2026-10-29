@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -72,6 +73,9 @@ export const contasCanal = pgTable(
     escopos: text("escopos"),
     status: statusConta("status").notNull().default("ativa"),
     ultimoErro: text("ultimo_erro"),
+    /** Product Ads: id do anunciante e se a permissão de publicidade está liberada. */
+    adsAdvertiserId: text("ads_advertiser_id"),
+    adsStatus: text("ads_status"),
     criadoEm: criadoEm(),
     atualizadoEm: atualizadoEm(),
   },
@@ -221,6 +225,11 @@ export const pedidos = pgTable(
     canalAtualizadoEm: timestamp("canal_atualizado_em", { withTimezone: true }),
     /** Dia da venda no fuso de São Paulo. */
     diaVenda: date("dia_venda").notNull(),
+    shippingId: text("shipping_id"),
+    /** Soma das tarifas de venda do pedido. */
+    tarifasCentavos: integer("tarifas_centavos"),
+    /** Frete pago pelo vendedor. null = ainda não consultado. */
+    freteVendedorCentavos: integer("frete_vendedor_centavos"),
     atualizadoEm: atualizadoEm(),
   },
   (t) => [
@@ -244,6 +253,7 @@ export const pedidoItens = pgTable(
     titulo: text("titulo"),
     quantidade: integer("quantidade").notNull(),
     precoUnitCentavos: integer("preco_unit_centavos").notNull(),
+    tarifaUnitCentavos: integer("tarifa_unit_centavos"),
   },
   (t) => [
     uniqueIndex("pedido_itens_uq").on(t.clienteId, t.orderId, t.itemId, t.variacaoId),
@@ -267,4 +277,68 @@ export const estoqueDiario = pgTable(
     atualizadoEm: atualizadoEm(),
   },
   (t) => [uniqueIndex("estoque_diario_uq").on(t.clienteId, t.itemId, t.local, t.dia)],
+);
+
+// ── Fase 2: dashboard de vendas ────────────────────────────────────────────
+
+/** Custo unitário por SKU, importado da planilha do cliente. */
+export const produtosCusto = pgTable(
+  "produtos_custo",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    clienteId: uuid("cliente_id")
+      .notNull()
+      .references(() => clientes.id, { onDelete: "cascade" }),
+    sku: text("sku").notNull(),
+    custoCentavos: integer("custo_centavos").notNull(),
+    origem: text("origem").notNull().default("planilha"),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [uniqueIndex("produtos_custo_uq").on(t.clienteId, t.sku)],
+);
+
+/** Métricas de Product Ads por anúncio e dia. */
+export const adsDiario = pgTable(
+  "ads_diario",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    clienteId: uuid("cliente_id")
+      .notNull()
+      .references(() => clientes.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    dia: date("dia").notNull(),
+    cliques: integer("cliques").notNull().default(0),
+    impressoes: integer("impressoes").notNull().default(0),
+    custoCentavos: integer("custo_centavos").notNull().default(0),
+    /** Vendas atribuídas ao anúncio pago (total_amount do ML). */
+    receitaCentavos: integer("receita_centavos").notNull().default(0),
+    unidades: integer("unidades").notNull().default(0),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [uniqueIndex("ads_diario_uq").on(t.clienteId, t.itemId, t.dia)],
+);
+
+/** Foto diária da reputação da conta. */
+export const reputacaoDiaria = pgTable(
+  "reputacao_diaria",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    clienteId: uuid("cliente_id")
+      .notNull()
+      .references(() => clientes.id, { onDelete: "cascade" }),
+    contaId: uuid("conta_id")
+      .notNull()
+      .references(() => contasCanal.id, { onDelete: "cascade" }),
+    dia: date("dia").notNull(),
+    /** 1_red ... 5_green */
+    nivel: text("nivel"),
+    medalha: text("medalha"),
+    reclamacoesTaxa: doublePrecision("reclamacoes_taxa"),
+    atrasosTaxa: doublePrecision("atrasos_taxa"),
+    cancelamentosTaxa: doublePrecision("cancelamentos_taxa"),
+    vendasPeriodo: integer("vendas_periodo"),
+    avaliacoesPositivas: doublePrecision("avaliacoes_positivas"),
+    atualizadoEm: atualizadoEm(),
+  },
+  (t) => [uniqueIndex("reputacao_diaria_uq").on(t.contaId, t.dia)],
 );

@@ -1,4 +1,5 @@
 import {
+  adsDiario,
   anuncios,
   coletas,
   conferencias,
@@ -7,10 +8,22 @@ import {
   estoqueDiario,
   pedidoItens,
   pedidos,
+  reputacaoDiaria,
+  contasCanal as tabelaContas,
 } from "@banah/db";
 import { deReais, diaLocal, log } from "@banah/shared";
-import { eq, sql } from "drizzle-orm";
-import { buscarAnuncios, buscarPedidos, listarIdsAnuncios, skuDoItem } from "./api";
+import { and, eq, isNotNull, isNull, notInArray, sql } from "drizzle-orm";
+import {
+  buscarAnunciante,
+  buscarAnuncios,
+  buscarMetricasAds,
+  buscarPedidos,
+  buscarReputacao,
+  custoFreteVendedor,
+  listarIdsAnuncios,
+  skuDoItem,
+} from "./api";
+import { MlErro } from "./http";
 
 type Conta = typeof contasCanal.$inferSelect;
 
@@ -167,6 +180,10 @@ export function coletarPedidos(
             canalCriadoEm: new Date(p.date_created),
             canalAtualizadoEm: p.last_updated ? new Date(p.last_updated) : null,
             diaVenda: diaLocal(new Date(p.date_created)),
+            shippingId: p.shipping?.id ? String(p.shipping.id) : null,
+            tarifasCentavos: p.order_items.every((oi) => oi.sale_fee == null)
+              ? null
+              : p.order_items.reduce((t, oi) => t + deReais(oi.sale_fee ?? 0) * oi.quantity, 0),
           })),
         )
         .onConflictDoUpdate({
@@ -176,6 +193,8 @@ export function coletarPedidos(
             totalCentavos: excluido("total_centavos"),
             canalAtualizadoEm: excluido("canal_atualizado_em"),
             packId: excluido("pack_id"),
+            shippingId: excluido("shipping_id"),
+            tarifasCentavos: excluido("tarifas_centavos"),
             atualizadoEm: sql`now()`,
           },
         });
@@ -190,6 +209,7 @@ export function coletarPedidos(
           titulo: oi.item.title ?? null,
           quantidade: oi.quantity,
           precoUnitCentavos: deReais(oi.unit_price),
+          tarifaUnitCentavos: oi.sale_fee == null ? null : deReais(oi.sale_fee),
         })),
       );
       if (linhas.length > 0) {
@@ -206,6 +226,7 @@ export function coletarPedidos(
             set: {
               quantidade: excluido("quantidade"),
               precoUnitCentavos: excluido("preco_unit_centavos"),
+              tarifaUnitCentavos: excluido("tarifa_unit_centavos"),
               sku: excluido("sku"),
               titulo: excluido("titulo"),
             },
@@ -214,4 +235,126 @@ export function coletarPedidos(
     }
     return { totalApi: total, gravados: lista.length };
   });
+}
+
+/**
+ * Frete pago pelo vendedor nos pedidos que ainda não têm esse valor.
+ * Uma chamada por envio; processa no máximo `limite` por vez e continua na próxima rodada.
+ */
+export async function coletarFretes(db: Db, conta: Conta, token: string, limite = 40) {
+  const pendentes = await db
+    .select({ id: pedidos.id, shippingId: pedidos.shippingId })
+    .from(pedidos)
+    .where(
+      and(
+        eq(pedidos.contaId, conta.id),
+        isNull(pedidos.freteVendedorCentavos),
+        isNotNull(pedidos.shippingId),
+        notInArray(pedidos.status, ["cancelled", "invalid"]),
+      ),
+    )
+    .orderBy(sql`${pedidos.diaVenda} desc`)
+    .limit(limite);
+
+  let gravados = 0;
+  for (const p of pendentes) {
+    if (!p.shippingId) continue;
+    try {
+      const custo = await custoFreteVendedor(token, p.shippingId, conta.sellerId);
+      await db
+        .update(pedidos)
+        .set({ freteVendedorCentavos: deReais(custo), atualizadoEm: new Date() })
+        .where(eq(pedidos.id, p.id));
+      gravados++;
+    } catch (erro) {
+      // Envio que não existe mais ou não é visível: registra zero para não travar a fila.
+      if (erro instanceof MlErro && (erro.status === 404 || erro.status === 403)) {
+        await db.update(pedidos).set({ freteVendedorCentavos: 0 }).where(eq(pedidos.id, p.id));
+        continue;
+      }
+      throw erro;
+    }
+  }
+  return { pendentes: pendentes.length, gravados };
+}
+
+/** Foto da reputação de hoje. */
+export async function coletarReputacao(db: Db, conta: Conta, token: string) {
+  const r = await buscarReputacao(token, conta.sellerId);
+  const valores = {
+    nivel: r.level_id ?? null,
+    medalha: r.power_seller_status ?? null,
+    reclamacoesTaxa: r.metrics?.claims?.rate ?? null,
+    atrasosTaxa: r.metrics?.delayed_handling_time?.rate ?? null,
+    cancelamentosTaxa: r.metrics?.cancellations?.rate ?? null,
+    vendasPeriodo: r.metrics?.sales?.completed ?? null,
+    avaliacoesPositivas: r.transactions?.ratings?.positive ?? null,
+  };
+  await db
+    .insert(reputacaoDiaria)
+    .values({ clienteId: conta.clienteId, contaId: conta.id, dia: diaLocal(), ...valores })
+    .onConflictDoUpdate({
+      target: [reputacaoDiaria.contaId, reputacaoDiaria.dia],
+      set: { ...valores, atualizadoEm: new Date() },
+    });
+  return valores;
+}
+
+/**
+ * Product Ads de um dia. Se a conta não tiver Product Ads ou a permissão de
+ * publicidade não estiver liberada, marca a conta e não trava a fila.
+ */
+export async function coletarAds(db: Db, conta: Conta, token: string, dia: string) {
+  let anunciante = conta.adsAdvertiserId;
+  try {
+    if (!anunciante) {
+      anunciante = await buscarAnunciante(token);
+      await db
+        .update(tabelaContas)
+        .set({ adsAdvertiserId: anunciante, adsStatus: anunciante ? "ok" : "sem_ads" })
+        .where(eq(tabelaContas.id, conta.id));
+      if (!anunciante) return { status: "sem_ads" as const, gravados: 0 };
+    }
+    const lista = await buscarMetricasAds(token, anunciante, dia);
+    const linhas = lista.map((a) => ({
+      clienteId: conta.clienteId,
+      itemId: a.item_id,
+      dia,
+      cliques: a.metrics?.clicks ?? 0,
+      impressoes: a.metrics?.prints ?? 0,
+      custoCentavos: deReais(a.metrics?.cost ?? 0),
+      receitaCentavos: deReais(a.metrics?.total_amount ?? 0),
+      unidades: a.metrics?.units_quantity ?? 0,
+    }));
+    for (let i = 0; i < linhas.length; i += 200) {
+      await db
+        .insert(adsDiario)
+        .values(linhas.slice(i, i + 200))
+        .onConflictDoUpdate({
+          target: [adsDiario.clienteId, adsDiario.itemId, adsDiario.dia],
+          set: {
+            cliques: excluido("cliques"),
+            impressoes: excluido("impressoes"),
+            custoCentavos: excluido("custo_centavos"),
+            receitaCentavos: excluido("receita_centavos"),
+            unidades: excluido("unidades"),
+            atualizadoEm: sql`now()`,
+          },
+        });
+    }
+    if (conta.adsStatus !== "ok") {
+      await db.update(tabelaContas).set({ adsStatus: "ok" }).where(eq(tabelaContas.id, conta.id));
+    }
+    return { status: "ok" as const, gravados: linhas.length };
+  } catch (erro) {
+    if (erro instanceof MlErro && (erro.status === 401 || erro.status === 403)) {
+      await db
+        .update(tabelaContas)
+        .set({ adsStatus: "sem_permissao" })
+        .where(eq(tabelaContas.id, conta.id));
+      log.warn("Product Ads sem permissão", { contaId: conta.id, status: erro.status });
+      return { status: "sem_permissao" as const, gravados: 0 };
+    }
+    throw erro;
+  }
 }

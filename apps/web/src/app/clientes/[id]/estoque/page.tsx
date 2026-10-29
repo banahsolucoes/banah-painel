@@ -1,6 +1,7 @@
 import type { StatusEstoque } from "@banah/core";
 import { notFound, redirect } from "next/navigation";
 import { BotaoEnviar } from "@/app/botao-enviar";
+import { Navegacao } from "@/app/clientes/[id]/navegacao";
 import { carregarEstoque } from "@/lib/estoque";
 import { sessaoAtual } from "@/lib/sessao";
 import { salvarConfigEstoque } from "./actions";
@@ -55,10 +56,8 @@ export default async function Estoque({
 
   return (
     <main style={{ maxWidth: 1200 }}>
-      <p>
-        <a href="/">← Clientes</a>
-      </p>
-      <h1>Estoque e previsão 60 dias · {d.cliente.nome}</h1>
+      <Navegacao clienteId={id} nome={d.cliente.nome} atual="estoque" />
+      <h1>Estoque e previsão 60 dias</h1>
       <p className="suave">
         {d.ultimaFoto
           ? `Foto do estoque de ${d.ultimaFoto.split("-").reverse().join("/")}`

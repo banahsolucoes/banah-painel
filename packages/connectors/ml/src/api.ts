@@ -28,10 +28,13 @@ export type MlPedido = {
   total_amount: number;
   date_created: string;
   last_updated?: string;
+  shipping?: { id?: number | null } | null;
   order_items: {
     item: { id: string; title?: string; seller_sku?: string | null; variation_id?: number | null };
     quantity: number;
     unit_price: number;
+    /** Tarifa de venda por unidade. */
+    sale_fee?: number | null;
   }[];
 };
 
@@ -104,4 +107,87 @@ export function buscarPedidos(
     [`order.${janela.campo}.to`]: dataMl(janela.ate),
     sort: "date_asc",
   });
+}
+
+// ── Fase 2: frete, reputação e Product Ads ──────────────────────────────
+
+/** Quanto o vendedor paga de frete neste envio (soma dos "senders" do próprio vendedor). */
+export async function custoFreteVendedor(token: string, shippingId: string, sellerId: string) {
+  const r = await mlGet<{ senders?: { user_id?: number; cost?: number }[] }>(
+    token,
+    `/shipments/${shippingId}/costs`,
+  );
+  return (r.senders ?? [])
+    .filter((s) => !s.user_id || String(s.user_id) === sellerId)
+    .reduce((t, s) => t + (s.cost ?? 0), 0);
+}
+
+export type MlReputacao = {
+  level_id?: string | null;
+  power_seller_status?: string | null;
+  transactions?: { ratings?: { positive?: number } };
+  metrics?: {
+    sales?: { completed?: number };
+    claims?: { rate?: number };
+    delayed_handling_time?: { rate?: number };
+    cancellations?: { rate?: number };
+  };
+};
+
+export async function buscarReputacao(token: string, sellerId: string) {
+  const u = await mlGet<{ seller_reputation?: MlReputacao }>(token, `/users/${sellerId}`);
+  return u.seller_reputation ?? {};
+}
+
+/** Id do anunciante de Product Ads da conta. null = conta sem Product Ads. */
+export async function buscarAnunciante(token: string): Promise<string | null> {
+  const r = await mlGet<{ advertisers?: { advertiser_id: number; site_id?: string }[] }>(
+    token,
+    "/advertising/advertisers",
+    { product_id: "PADS" },
+    { "Api-Version": "1" },
+  );
+  const a = r.advertisers?.find((x) => !x.site_id || x.site_id === "MLB") ?? r.advertisers?.[0];
+  return a ? String(a.advertiser_id) : null;
+}
+
+export type MlAdsMetricas = {
+  item_id: string;
+  metrics?: {
+    clicks?: number;
+    prints?: number;
+    cost?: number;
+    total_amount?: number;
+    units_quantity?: number;
+  };
+};
+
+/**
+ * Métricas de todos os anúncios do anunciante num dia. O filtro por campanha não
+ * funciona na API, então vêm todos os anúncios; o agrupamento é feito no banco.
+ * As métricas do dia só consolidam por volta das 10h do dia seguinte.
+ */
+export async function buscarMetricasAds(token: string, advertiserId: string, dia: string) {
+  const itens: MlAdsMetricas[] = [];
+  let total = 0;
+  for (let offset = 0; ; offset += 100) {
+    const p = await mlGet<{ results: MlAdsMetricas[]; paging: { total: number } }>(
+      token,
+      `/advertising/MLB/advertisers/${advertiserId}/product_ads/ads/search`,
+      {
+        limit: 100,
+        offset,
+        date_from: dia,
+        date_to: dia,
+        metrics: "clicks,prints,cost,cpc,acos,roas,units_quantity,total_amount,direct_amount",
+      },
+      { "Api-Version": "2" },
+    );
+    total = p.paging.total;
+    itens.push(...p.results);
+    if (p.results.length === 0 || itens.length >= total) break;
+  }
+  if (itens.length !== total)
+    throw new Error(`Ads incompleto em ${dia}: ${itens.length} de ${total}`);
+  return itens;
 }

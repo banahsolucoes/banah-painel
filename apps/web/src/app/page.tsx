@@ -85,8 +85,8 @@ export default async function Inicio({
                   </form>
                 )}
                 {doCliente.length > 0 ? (
-                  <a className="botao" href={`/clientes/${c.id}/estoque`}>
-                    Estoque e previsão
+                  <a className="botao" href={`/clientes/${c.id}/vendas`}>
+                    Abrir painel
                   </a>
                 ) : (
                   <a className="botao" href={`/api/auth/ml/start?cliente=${c.id}`}>

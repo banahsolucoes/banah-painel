@@ -29,6 +29,20 @@
       "when": 1793306302117,
       "tag": "0003_fase1_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793307795392,
+      "tag": "0004_fase2_dashboard",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793307796503,
+      "tag": "0005_fase2_rls",
+      "breakpoints": true
     }
   ]
 }
