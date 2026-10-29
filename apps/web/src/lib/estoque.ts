@@ -33,6 +33,8 @@ export type LinhaEstoque = ResultadoEstoque & {
   disponivel: number;
   unidadesFullMl: number;
   vendido60d: number;
+  /** Dias desde o cadastro do anúncio no canal. */
+  diasAtivo: number | null;
   permalink: string | null;
 };
 
@@ -109,7 +111,8 @@ export async function carregarEstoque(clienteId: string) {
   const estoquePorItem = new Map(estoque.map((e) => [e.item_id, e]));
 
   const linhas: LinhaEstoque[] = lista
-    .filter((a) => a.status !== "closed")
+    // Só anúncios ativos: pausado ou fechado não entra na análise de reposição.
+    .filter((a) => a.status === "active")
     .map((a) => {
       // Histórico possível: limitado pela carga inicial e pela idade do anúncio.
       let dias = cargaCompleta ? 60 : 0;
@@ -138,6 +141,7 @@ export async function carregarEstoque(clienteId: string) {
         unidadesFullMl: e?.full_ml ?? 0,
         disponivel,
         vendido60d: vendasDiarias.reduce((s, v) => s + v, 0),
+        diasAtivo: a.canalCriadoEm ? diasEntre(diaLocal(a.canalCriadoEm), hoje) : null,
         permalink: a.permalink,
       };
     })

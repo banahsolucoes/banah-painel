@@ -130,7 +130,9 @@ export default async function Estoque({
                   <div className="suave pequeno">
                     {l.itemId}
                     {l.sku ? ` · SKU ${l.sku}` : ""}
-                    {l.statusAnuncio !== "active" ? ` · ${l.statusAnuncio}` : ""}
+                    {l.diasAtivo !== null
+                      ? ` · ativo há ${n0(l.diasAtivo)} ${l.diasAtivo === 1 ? "dia" : "dias"}`
+                      : ""}
                   </div>
                 </td>
                 <td>
