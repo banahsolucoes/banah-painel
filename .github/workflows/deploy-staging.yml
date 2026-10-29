@@ -44,7 +44,7 @@ jobs:
           # Mostra o resultado sem expor senha ou endereço do banco.
           sed -E 's#postgres(ql)?://[^ "]+#[url-omitida]#g' migrar.log | tail -40
           if [ $codigo -ne 0 ]; then
-            resumo=$(sed -E 's#postgres(ql)?://[^ "]+#[url-omitida]#g' migrar.log | grep -iE "error|erro|code|refused|password|tenant|timeout|enotfound" | head -5 | tr '\n' ' ')
+            resumo=$(sed -E 's#postgres(ql)?://[^ "]+#[url-omitida]#g' migrar.log | grep -v "^\s*$" | tail -25 | tr '\n' ' ')
             echo "::error::Migração falhou: ${resumo}"
             exit $codigo
           fi
