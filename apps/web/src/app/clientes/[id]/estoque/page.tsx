@@ -69,12 +69,33 @@ function ordenar(linhas: LinhaEstoque[], col: Coluna | undefined, dir: "asc" | "
   });
 }
 
-function Cabecalho({ c, col, dir }: { c: Coluna; col: Coluna | undefined; dir: "asc" | "desc" }) {
+/** Monta o link mantendo o que já está aplicado (ordem e filtro). */
+function link(p: { o?: string; d?: string; f?: string }) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(p)) if (v) q.set(k, v);
+  const s = q.toString();
+  return s ? `?${s}` : "?";
+}
+
+function Cabecalho({
+  c,
+  col,
+  dir,
+  filtro,
+}: {
+  c: Coluna;
+  col: Coluna | undefined;
+  dir: "asc" | "desc";
+  filtro: StatusEstoque | undefined;
+}) {
   const ativa = col === c;
   const proxima = ativa && dir === "desc" ? "asc" : "desc";
   return (
     <th className={COLUNAS[c].num ? "num" : undefined}>
-      <a className={ativa ? "ordenar ativa" : "ordenar"} href={`?o=${c}&d=${proxima}`}>
+      <a
+        className={ativa ? "ordenar ativa" : "ordenar"}
+        href={link({ o: c, d: proxima, f: filtro })}
+      >
         {COLUNAS[c].rotulo}
         <span className="seta">{ativa ? (dir === "asc" ? "▲" : "▼") : "↕"}</span>
       </a>
@@ -90,12 +111,13 @@ export default async function Estoque({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ msg?: string; o?: string; d?: string }>;
+  searchParams: Promise<{ msg?: string; o?: string; d?: string; f?: string }>;
 }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect("/login");
   const { id } = await params;
-  const { msg, o, d: dirParam } = await searchParams;
+  const { msg, o, d: dirParam, f } = await searchParams;
+  const filtro = f && f in ROTULO ? (f as StatusEstoque) : undefined;
   const col = o && o in COLUNAS ? (o as Coluna) : undefined;
   const dir = dirParam === "asc" ? "asc" : "desc";
   if (sessao.papel !== "admin" && sessao.clienteId !== id) notFound();
@@ -103,7 +125,7 @@ export default async function Estoque({
   const d = await carregarEstoque(id);
   if (!d) notFound();
 
-  const linhas = ordenar(d.linhas, col, dir);
+  const linhas = ordenar(filtro ? d.linhas.filter((l) => l.status === filtro) : d.linhas, col, dir);
   const contagem = d.linhas.reduce<Record<string, number>>((acc, l) => {
     acc[l.status] = (acc[l.status] ?? 0) + 1;
     return acc;
@@ -138,10 +160,15 @@ export default async function Estoque({
       <div className="resumo secao tom-estoque">
         {(["ruptura_iminente", "comprar", "ok", "excesso", "parado"] as StatusEstoque[]).map(
           (s) => (
-            <div key={s} className={`cartao resumo-item ${CLASSE[s]}`}>
+            <a
+              key={s}
+              href={link({ o: col, d: col ? dir : undefined, f: filtro === s ? undefined : s })}
+              className={`cartao resumo-item filtro ${CLASSE[s]}${filtro === s ? " selecionado" : ""}`}
+              title={filtro === s ? "Clique para tirar o filtro" : `Mostrar só ${ROTULO[s]}`}
+            >
               <span className="resumo-num">{contagem[s] ?? 0}</span>
               <span>{ROTULO[s]}</span>
-            </div>
+            </a>
           ),
         )}
         {d.cfg.capacidadeFullMl !== null && (
@@ -152,6 +179,11 @@ export default async function Estoque({
             <span>Unidades no Full ML</span>
           </div>
         )}
+        {filtro && (
+          <a className="remover-filtro" href={link({ o: col, d: col ? dir : undefined })}>
+            ✕ Remover filtro ({ROTULO[filtro]})
+          </a>
+        )}
       </div>
 
       <div className="tabela-rolagem">
@@ -159,7 +191,7 @@ export default async function Estoque({
           <thead>
             <tr>
               {(Object.keys(COLUNAS) as Coluna[]).map((c) => (
-                <Cabecalho key={c} c={c} col={col} dir={dir} />
+                <Cabecalho key={c} c={c} col={col} dir={dir} filtro={filtro} />
               ))}
             </tr>
           </thead>

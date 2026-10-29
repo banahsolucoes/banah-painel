@@ -285,7 +285,7 @@ label input {
   background: var(--cartao);
 }
 .tabela .num {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -393,4 +393,49 @@ textarea {
 }
 .ordenar.ativa .seta {
   opacity: 1;
+}
+
+/* Cabeçalho centralizado; só a coluna do produto (primeira) fica à esquerda. */
+.tabela th,
+.tabela td {
+  text-align: center;
+}
+.tabela th:first-child,
+.tabela td:first-child {
+  text-align: left;
+}
+.tabela td {
+  vertical-align: middle;
+}
+
+/* Cartões do resumo viram filtro. */
+.resumo-item.filtro {
+  text-decoration: none;
+  color: var(--texto);
+  cursor: pointer;
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+.resumo-item.filtro:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px var(--acento);
+}
+.resumo-item.filtro.selecionado {
+  box-shadow: 0 0 0 2px var(--acento);
+  background: var(--marca-suave);
+}
+.remover-filtro {
+  margin-left: auto;
+  align-self: center;
+  color: var(--suave);
+  text-decoration: none;
+  font-size: 13px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+.remover-filtro:hover {
+  color: var(--erro);
+  border-color: var(--erro);
 }
