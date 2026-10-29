@@ -6,12 +6,13 @@ export function Navegacao({
 }: {
   clienteId: string;
   nome: string;
-  atual: "vendas" | "estoque" | "precos" | "custos";
+  atual: "vendas" | "estoque" | "precos" | "promocoes" | "custos";
 }) {
   const abas = [
     { id: "vendas", rotulo: "Vendas", href: `/clientes/${clienteId}/vendas` },
     { id: "estoque", rotulo: "Estoque e previsão", href: `/clientes/${clienteId}/estoque` },
     { id: "precos", rotulo: "Preços", href: `/clientes/${clienteId}/precos` },
+    { id: "promocoes", rotulo: "Promoções", href: `/clientes/${clienteId}/promocoes` },
     { id: "custos", rotulo: "Custos", href: `/clientes/${clienteId}/custos` },
   ] as const;
   return (

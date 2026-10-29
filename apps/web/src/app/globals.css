@@ -482,3 +482,32 @@ textarea {
   color: var(--erro);
   font-weight: 700;
 }
+.campanhas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+.campanha {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  text-decoration: none;
+  color: var(--texto);
+  margin: 0;
+}
+.campanha:hover {
+  box-shadow: 0 0 0 1px var(--acento);
+}
+.campanha .selo {
+  justify-self: start;
+}
+select.campo,
+select {
+  font: inherit;
+  padding: 7px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 7px;
+  background: var(--cartao);
+  color: var(--texto);
+  max-width: 420px;
+}
