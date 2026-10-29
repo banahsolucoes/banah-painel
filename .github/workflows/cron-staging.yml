@@ -1,0 +1,19 @@
+name: Cron staging
+
+# O Vercel Cron só dispara em produção. No staging, o GitHub chama o executor.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    if: ${{ vars.DEPLOY_ATIVO == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    environment: staging
+    steps:
+      - name: Chamar /api/cron/tick
+        run: |
+          curl -fsS --max-time 300 -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.APP_URL }}/api/cron/tick"
